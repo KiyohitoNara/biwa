@@ -1,5 +1,6 @@
 package io.github.kiyohitonara.biwa.data.local
 
+import io.github.kiyohitonara.biwa.domain.storage.FileStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -9,8 +10,8 @@ import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSUserDomainMask
 
 /** iOS implementation that copies files into the app sandbox's Application Support directory. */
-actual class FileManager {
-    actual suspend fun copyToInternalStorage(sourceUri: String, fileName: String): String =
+actual class FileManager : FileStorage {
+    actual override suspend fun copyToInternalStorage(sourceUri: String, fileName: String): String =
         withContext(Dispatchers.IO) {
             val mediaDir = mediaDirectory()
             NSFileManager.defaultManager.createDirectoryAtPath(
@@ -31,7 +32,7 @@ actual class FileManager {
             destPath
         }
 
-    actual suspend fun deleteFromInternalStorage(filePath: String) =
+    actual override suspend fun deleteFromInternalStorage(filePath: String) =
         withContext(Dispatchers.IO) {
             if (NSFileManager.defaultManager.fileExistsAtPath(filePath)) {
                 NSFileManager.defaultManager.removeItemAtPath(filePath, error = null)
