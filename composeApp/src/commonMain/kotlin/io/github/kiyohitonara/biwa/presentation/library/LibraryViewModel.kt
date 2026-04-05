@@ -2,8 +2,11 @@ package io.github.kiyohitonara.biwa.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,10 +21,14 @@ import kotlinx.coroutines.launch
  *
  * Collects the [GetAllMediaUseCase] stream and exposes it as a [StateFlow].
  * Deletion is delegated to [DeleteMediaUseCase]; the list updates reactively.
+ * Opening a media item is handled by [openMedia], which records the view and
+ * emits a [LibraryNavEffect] to navigate to the appropriate screen.
  */
 class LibraryViewModel(
     getAllMediaUseCase: GetAllMediaUseCase,
     private val deleteMediaUseCase: DeleteMediaUseCase,
+    private val getMediaByIdUseCase: GetMediaByIdUseCase,
+    private val updateLastViewedAtUseCase: UpdateLastViewedAtUseCase,
 ) : ViewModel() {
     /**
      * Current state of the library.
@@ -44,6 +51,11 @@ class LibraryViewModel(
     /** Emits an error message when a deletion fails. One-shot event. */
     val deleteError: SharedFlow<String> = _deleteError.asSharedFlow()
 
+    private val _navEffect = MutableSharedFlow<LibraryNavEffect>()
+
+    /** Emits a one-shot navigation event when a media item is opened. */
+    val navEffect: SharedFlow<LibraryNavEffect> = _navEffect.asSharedFlow()
+
     /**
      * Deletes the media item identified by [id] along with its file.
      *
@@ -57,6 +69,24 @@ class LibraryViewModel(
             } catch (e: Exception) {
                 _deleteError.emit(e.message ?: "Failed to delete")
             }
+        }
+    }
+
+    /**
+     * Records the view and emits a navigation effect to open the media item.
+     *
+     * VIDEO and GIF items navigate to the video player; PHOTO items navigate
+     * to the photo viewer. Does nothing if [id] is not found in the library.
+     */
+    fun openMedia(id: String) {
+        viewModelScope.launch {
+            updateLastViewedAtUseCase.execute(id)
+            val item = getMediaByIdUseCase.execute(id) ?: return@launch
+            val effect = when (item.mediaType) {
+                MediaType.VIDEO, MediaType.GIF -> LibraryNavEffect.OpenVideoPlayer(id)
+                MediaType.PHOTO -> LibraryNavEffect.OpenPhotoViewer(id)
+            }
+            _navEffect.emit(effect)
         }
     }
 }

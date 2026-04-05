@@ -5,6 +5,8 @@ import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,6 +41,8 @@ class LibraryViewModelTest {
         viewModel = LibraryViewModel(
             getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
             deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage()),
+            getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
+            updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
         )
         // Subscribe to activate WhileSubscribed sharing
         collectionJob = CoroutineScope(testDispatcher).launch { viewModel.uiState.collect() }
@@ -55,6 +59,8 @@ class LibraryViewModelTest {
         val freshViewModel = LibraryViewModel(
             getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
             deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage()),
+            getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
+            updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
         )
         assertIs<LibraryUiState.Loading>(freshViewModel.uiState.value)
     }
@@ -109,6 +115,8 @@ class LibraryViewModelTest {
         val throwingViewModel = LibraryViewModel(
             getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
             deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, throwingFileStorage("delete failed")),
+            getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
+            updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
         )
         fakeItems.value = listOf(videoItem())
 
@@ -133,6 +141,65 @@ class LibraryViewModelTest {
         val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
         assertEquals(1, state.items.size)
         assertEquals("b", state.items.first().id)
+    }
+
+    @Test
+    fun `openMedia emits OpenVideoPlayer for VIDEO item`() = runTest(testDispatcher) {
+        fakeItems.value = listOf(videoItem())
+
+        var received: LibraryNavEffect? = null
+        val job = launch { viewModel.navEffect.collect { received = it } }
+
+        viewModel.openMedia("id-1")
+        job.cancel()
+
+        assertEquals(LibraryNavEffect.OpenVideoPlayer("id-1"), received)
+    }
+
+    @Test
+    fun `openMedia emits OpenVideoPlayer for GIF item`() = runTest(testDispatcher) {
+        fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.GIF))
+
+        var received: LibraryNavEffect? = null
+        val job = launch { viewModel.navEffect.collect { received = it } }
+
+        viewModel.openMedia("id-1")
+        job.cancel()
+
+        assertEquals(LibraryNavEffect.OpenVideoPlayer("id-1"), received)
+    }
+
+    @Test
+    fun `openMedia emits OpenPhotoViewer for PHOTO item`() = runTest(testDispatcher) {
+        fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.PHOTO))
+
+        var received: LibraryNavEffect? = null
+        val job = launch { viewModel.navEffect.collect { received = it } }
+
+        viewModel.openMedia("id-1")
+        job.cancel()
+
+        assertEquals(LibraryNavEffect.OpenPhotoViewer("id-1"), received)
+    }
+
+    @Test
+    fun `openMedia does nothing when item not found`() = runTest(testDispatcher) {
+        var received: LibraryNavEffect? = null
+        val job = launch { viewModel.navEffect.collect { received = it } }
+
+        viewModel.openMedia("nonexistent")
+        job.cancel()
+
+        assertEquals(null, received)
+    }
+
+    @Test
+    fun `openMedia records lastViewedAt timestamp`() = runTest(testDispatcher) {
+        fakeItems.value = listOf(videoItem())
+
+        viewModel.openMedia("id-1")
+
+        assertTrue(fakeRepository.lastViewedAtUpdates.any { it.first == "id-1" })
     }
 
     private fun fakeFileStorage() = object : FileStorage {
