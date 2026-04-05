@@ -8,5 +8,5 @@ import org.koin.dsl.module
 /** Koin module that registers all ViewModels. */
 val viewModelModule = module {
     viewModel { AddMediaViewModel(get(), get()) }
-    viewModel { LibraryViewModel(get()) }
+    viewModel { LibraryViewModel(get(), get()) }
 }

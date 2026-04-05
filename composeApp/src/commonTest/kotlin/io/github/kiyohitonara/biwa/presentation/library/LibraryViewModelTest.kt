@@ -2,6 +2,8 @@ package io.github.kiyohitonara.biwa.presentation.library
 
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
+import io.github.kiyohitonara.biwa.domain.storage.FileStorage
+import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -9,6 +11,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -20,18 +23,23 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private val fakeItems = MutableStateFlow<List<MediaItem>>(emptyList())
+    private val fakeRepository = FakeMediaRepository(fakeItems)
     private lateinit var viewModel: LibraryViewModel
     private lateinit var collectionJob: Job
 
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        viewModel = LibraryViewModel(GetAllMediaUseCase(FakeMediaRepository(fakeItems)))
+        viewModel = LibraryViewModel(
+            getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
+            deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage()),
+        )
         // Subscribe to activate WhileSubscribed sharing
         collectionJob = CoroutineScope(testDispatcher).launch { viewModel.uiState.collect() }
     }
@@ -44,8 +52,10 @@ class LibraryViewModelTest {
 
     @Test
     fun `initial state is Loading before first subscriber`() {
-        // Create a ViewModel without subscribing to verify the initial cached value
-        val freshViewModel = LibraryViewModel(GetAllMediaUseCase(FakeMediaRepository(fakeItems)))
+        val freshViewModel = LibraryViewModel(
+            getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
+            deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage()),
+        )
         assertIs<LibraryUiState.Loading>(freshViewModel.uiState.value)
     }
 
@@ -82,6 +92,61 @@ class LibraryViewModelTest {
 
         val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
         assertEquals(emptyList(), state.items)
+    }
+
+    @Test
+    fun `deleteMedia removes item from uiState`() = runTest {
+        fakeItems.value = listOf(videoItem())
+
+        viewModel.deleteMedia("id-1")
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertTrue(state.items.isEmpty())
+    }
+
+    @Test
+    fun `deleteMedia emits deleteError when use case throws`() = runTest(testDispatcher) {
+        val throwingViewModel = LibraryViewModel(
+            getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
+            deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, throwingFileStorage("delete failed")),
+        )
+        fakeItems.value = listOf(videoItem())
+
+        var receivedError: String? = null
+        val errorJob = launch { throwingViewModel.deleteError.collect { receivedError = it } }
+
+        throwingViewModel.deleteMedia("id-1")
+        errorJob.cancel()
+
+        assertEquals("delete failed", receivedError)
+    }
+
+    @Test
+    fun `deleteMedia does not affect other items`() = runTest {
+        fakeItems.value = listOf(
+            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+        )
+
+        viewModel.deleteMedia("a")
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertEquals(1, state.items.size)
+        assertEquals("b", state.items.first().id)
+    }
+
+    private fun fakeFileStorage() = object : FileStorage {
+        override suspend fun copyToInternalStorage(sourceUri: String, fileName: String) =
+            "/internal/media/$fileName"
+        override suspend fun deleteFromInternalStorage(filePath: String) {}
+    }
+
+    private fun throwingFileStorage(message: String) = object : FileStorage {
+        override suspend fun copyToInternalStorage(sourceUri: String, fileName: String) =
+            "/internal/media/$fileName"
+        override suspend fun deleteFromInternalStorage(filePath: String) {
+            error(message)
+        }
     }
 
     private fun videoItem() = MediaItem(
