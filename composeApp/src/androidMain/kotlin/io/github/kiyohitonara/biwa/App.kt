@@ -1,14 +1,14 @@
 package io.github.kiyohitonara.biwa
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import io.github.kiyohitonara.biwa.presentation.addmedia.AddMediaScreen
 
 @Composable
 fun App() {
     MaterialTheme {
-        Text("Biwa")
+        AddMediaScreen()
     }
 }
 

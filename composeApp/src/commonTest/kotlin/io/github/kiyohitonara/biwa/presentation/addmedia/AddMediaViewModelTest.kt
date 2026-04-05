@@ -1,6 +1,8 @@
 package io.github.kiyohitonara.biwa.presentation.addmedia
 
+import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
 import io.github.kiyohitonara.biwa.domain.model.AddMediaRequest
+import io.github.kiyohitonara.biwa.domain.model.MediaFileMetadata
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.repository.MediaRepository
@@ -29,7 +31,7 @@ class AddMediaViewModelTest {
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        viewModel = AddMediaViewModel(useCase())
+        viewModel = AddMediaViewModel(useCase(), extractor())
     }
 
     @AfterTest
@@ -44,39 +46,50 @@ class AddMediaViewModelTest {
 
     @Test
     fun `addMedia transitions to Success on completion`() = runTest {
-        viewModel.addMedia(videoRequest())
+        viewModel.addMedia("content://media/sample.mp4")
 
         assertIs<AddMediaUiState.Success>(viewModel.uiState.value)
     }
 
     @Test
     fun `addMedia Success contains the returned MediaItem`() = runTest {
-        viewModel.addMedia(videoRequest())
+        viewModel.addMedia("content://media/sample.mp4")
 
         val state = assertIs<AddMediaUiState.Success>(viewModel.uiState.value)
         assertEquals("sample.mp4", state.item.displayName)
     }
 
     @Test
-    fun `addMedia transitions to Error when use case throws`() = runTest {
-        val failingViewModel = AddMediaViewModel(useCase(throwOnCopy = true))
-        failingViewModel.addMedia(videoRequest())
+    fun `addMedia transitions to Error when extractor throws`() = runTest {
+        val failingViewModel = AddMediaViewModel(useCase(), extractor(throwOnExtract = true))
+        failingViewModel.addMedia("content://media/sample.mp4")
 
         assertIs<AddMediaUiState.Error>(failingViewModel.uiState.value)
     }
 
     @Test
     fun `addMedia Error contains the exception message`() = runTest {
-        val failingViewModel = AddMediaViewModel(useCase(throwOnCopy = true, errorMessage = "copy failed"))
-        failingViewModel.addMedia(videoRequest())
+        val failingViewModel = AddMediaViewModel(
+            useCase(),
+            extractor(throwOnExtract = true, errorMessage = "permission denied"),
+        )
+        failingViewModel.addMedia("content://media/sample.mp4")
 
         val state = assertIs<AddMediaUiState.Error>(failingViewModel.uiState.value)
-        assertEquals("copy failed", state.message)
+        assertEquals("permission denied", state.message)
+    }
+
+    @Test
+    fun `addMedia transitions to Error when use case throws`() = runTest {
+        val failingViewModel = AddMediaViewModel(useCase(throwOnCopy = true), extractor())
+        failingViewModel.addMedia("content://media/sample.mp4")
+
+        assertIs<AddMediaUiState.Error>(failingViewModel.uiState.value)
     }
 
     @Test
     fun `resetState returns to Idle after Success`() = runTest {
-        viewModel.addMedia(videoRequest())
+        viewModel.addMedia("content://media/sample.mp4")
         viewModel.resetState()
 
         assertIs<AddMediaUiState.Idle>(viewModel.uiState.value)
@@ -84,14 +97,30 @@ class AddMediaViewModelTest {
 
     @Test
     fun `resetState returns to Idle after Error`() = runTest {
-        val failingViewModel = AddMediaViewModel(useCase(throwOnCopy = true))
-        failingViewModel.addMedia(videoRequest())
+        val failingViewModel = AddMediaViewModel(useCase(), extractor(throwOnExtract = true))
+        failingViewModel.addMedia("content://media/sample.mp4")
         failingViewModel.resetState()
 
         assertIs<AddMediaUiState.Idle>(failingViewModel.uiState.value)
     }
 
-    private fun useCase(throwOnCopy: Boolean = false, errorMessage: String = "error") =
+    private fun extractor(throwOnExtract: Boolean = false, errorMessage: String = "error") =
+        object : MediaMetadataExtractor {
+            override suspend fun extract(sourceUri: String): MediaFileMetadata {
+                if (throwOnExtract) error(errorMessage)
+                val fileName = sourceUri.substringAfterLast("/")
+                return MediaFileMetadata(
+                    fileName = fileName,
+                    mediaType = MediaType.VIDEO,
+                    durationMs = 30_000L,
+                    widthPx = 1920L,
+                    heightPx = 1080L,
+                    fileSizeBytes = 10_000_000L,
+                )
+            }
+        }
+
+    private fun useCase(throwOnCopy: Boolean = false) =
         AddMediaUseCase(
             repository = object : MediaRepository {
                 val items = mutableListOf<MediaItem>()
@@ -105,22 +134,11 @@ class AddMediaViewModelTest {
             },
             fileStorage = object : FileStorage {
                 override suspend fun copyToInternalStorage(sourceUri: String, fileName: String): String {
-                    if (throwOnCopy) error(errorMessage)
+                    if (throwOnCopy) error("copy failed")
                     return "/internal/media/$fileName"
                 }
                 override suspend fun deleteFromInternalStorage(filePath: String) {}
             },
             clock = { 1_700_000_000L },
         )
-
-    private fun videoRequest() = AddMediaRequest(
-        sourceUri = "content://media/sample.mp4",
-        fileName = "sample.mp4",
-        mediaType = MediaType.VIDEO,
-        displayName = "sample.mp4",
-        durationMs = 30_000L,
-        widthPx = 1920L,
-        heightPx = 1080L,
-        fileSizeBytes = 10_000_000L,
-    )
 }
