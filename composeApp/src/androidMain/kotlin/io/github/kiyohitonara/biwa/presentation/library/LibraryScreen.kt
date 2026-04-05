@@ -39,6 +39,8 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun LibraryScreen(
     onAddMedia: () -> Unit,
+    onOpenVideoPlayer: (String) -> Unit,
+    onOpenPhotoViewer: (String) -> Unit,
     viewModel: LibraryViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -48,6 +50,15 @@ fun LibraryScreen(
     LaunchedEffect(viewModel.deleteError) {
         viewModel.deleteError.collect { message ->
             snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(viewModel.navEffect) {
+        viewModel.navEffect.collect { effect ->
+            when (effect) {
+                is LibraryNavEffect.OpenVideoPlayer -> onOpenVideoPlayer(effect.id)
+                is LibraryNavEffect.OpenPhotoViewer -> onOpenPhotoViewer(effect.id)
+            }
         }
     }
 
@@ -74,6 +85,7 @@ fun LibraryScreen(
                     } else {
                         MediaGrid(
                             items = state.items,
+                            onTap = { viewModel.openMedia(it.id) },
                             onLongPress = { pendingDeleteItem = it },
                         )
                     }
@@ -114,20 +126,28 @@ private fun EmptyLibrary(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MediaGrid(items: List<MediaItem>, onLongPress: (MediaItem) -> Unit) {
+private fun MediaGrid(
+    items: List<MediaItem>,
+    onTap: (MediaItem) -> Unit,
+    onLongPress: (MediaItem) -> Unit,
+) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         modifier = Modifier.fillMaxSize(),
     ) {
         items(items, key = { it.id }) { item ->
-            MediaThumbnail(item = item, onLongPress = { onLongPress(item) })
+            MediaThumbnail(
+                item = item,
+                onTap = { onTap(item) },
+                onLongPress = { onLongPress(item) },
+            )
         }
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MediaThumbnail(item: MediaItem, onLongPress: () -> Unit) {
+private fun MediaThumbnail(item: MediaItem, onTap: () -> Unit, onLongPress: () -> Unit) {
     val imageModel = item.thumbnailPath ?: item.filePath
     AsyncImage(
         model = imageModel,
@@ -136,7 +156,7 @@ private fun MediaThumbnail(item: MediaItem, onLongPress: () -> Unit) {
         modifier = Modifier
             .aspectRatio(1f)
             .combinedClickable(
-                onClick = {},
+                onClick = onTap,
                 onLongClick = onLongPress,
             ),
     )
