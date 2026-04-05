@@ -1,0 +1,22 @@
+CREATE TABLE playback_state (
+    video_id TEXT NOT NULL PRIMARY KEY,
+    position_ms INTEGER NOT NULL,
+    ab_start_ms INTEGER,
+    ab_end_ms INTEGER,
+    playback_speed REAL NOT NULL DEFAULT 1.0,
+    updated_at INTEGER NOT NULL
+);
+
+upsert:
+INSERT OR REPLACE INTO playback_state (
+    video_id,
+    position_ms,
+    ab_start_ms,
+    ab_end_ms,
+    playback_speed,
+    updated_at
+) VALUES (?, ?, ?, ?, ?, ?);
+
+selectByVideoId:
+SELECT * FROM playback_state
+WHERE video_id = ?;
