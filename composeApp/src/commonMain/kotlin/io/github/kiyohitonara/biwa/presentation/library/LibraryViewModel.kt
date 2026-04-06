@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
@@ -23,13 +24,19 @@ import kotlinx.coroutines.launch
  * Deletion is delegated to [DeleteMediaUseCase]; the list updates reactively.
  * Opening a media item is handled by [openMedia], which records the view and
  * emits a [LibraryNavEffect] to navigate to the appropriate screen.
+ * On each library update, thumbnail generation is triggered in the background
+ * for any VIDEO items that do not yet have a cached thumbnail.
  */
 class LibraryViewModel(
-    getAllMediaUseCase: GetAllMediaUseCase,
+    private val getAllMediaUseCase: GetAllMediaUseCase,
     private val deleteMediaUseCase: DeleteMediaUseCase,
     private val getMediaByIdUseCase: GetMediaByIdUseCase,
     private val updateLastViewedAtUseCase: UpdateLastViewedAtUseCase,
+    private val generateThumbnailUseCase: GenerateThumbnailUseCase,
 ) : ViewModel() {
+    // IDs for which thumbnail generation has already been scheduled this session.
+    private val generatingIds = mutableSetOf<String>()
+
     /**
      * Current state of the library.
      *
@@ -45,6 +52,19 @@ class LibraryViewModel(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = LibraryUiState.Loading,
         )
+
+    init {
+        viewModelScope.launch {
+            getAllMediaUseCase.execute().collect { items ->
+                items.filter { it.thumbnailPath == null }
+                    .forEach { item ->
+                        if (generatingIds.add(item.id)) {
+                            launch { generateThumbnailUseCase.execute(item) }
+                        }
+                    }
+            }
+        }
+    }
 
     private val _deleteError = MutableSharedFlow<String>()
 

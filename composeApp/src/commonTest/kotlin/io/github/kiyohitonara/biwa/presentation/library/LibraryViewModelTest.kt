@@ -4,6 +4,7 @@ import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
@@ -32,18 +33,25 @@ class LibraryViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private val fakeItems = MutableStateFlow<List<MediaItem>>(emptyList())
     private val fakeRepository = FakeMediaRepository(fakeItems)
+    private val fakeThumbnailRepository = FakeThumbnailRepository()
     private lateinit var viewModel: LibraryViewModel
     private lateinit var collectionJob: Job
+
+    private fun buildViewModel(
+        repository: FakeMediaRepository = fakeRepository,
+        thumbnailRepository: FakeThumbnailRepository = fakeThumbnailRepository,
+    ) = LibraryViewModel(
+        getAllMediaUseCase = GetAllMediaUseCase(repository),
+        deleteMediaUseCase = DeleteMediaUseCase(repository, fakeFileStorage()),
+        getMediaByIdUseCase = GetMediaByIdUseCase(repository),
+        updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(repository, clock = { 0L }),
+        generateThumbnailUseCase = GenerateThumbnailUseCase(thumbnailRepository, repository),
+    )
 
     @BeforeTest
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        viewModel = LibraryViewModel(
-            getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
-            deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage()),
-            getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
-            updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
-        )
+        viewModel = buildViewModel()
         // Subscribe to activate WhileSubscribed sharing
         collectionJob = CoroutineScope(testDispatcher).launch { viewModel.uiState.collect() }
     }
@@ -56,12 +64,7 @@ class LibraryViewModelTest {
 
     @Test
     fun `initial state is Loading before first subscriber`() {
-        val freshViewModel = LibraryViewModel(
-            getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
-            deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage()),
-            getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
-            updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
-        )
+        val freshViewModel = buildViewModel()
         assertIs<LibraryUiState.Loading>(freshViewModel.uiState.value)
     }
 
@@ -117,6 +120,7 @@ class LibraryViewModelTest {
             deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, throwingFileStorage("delete failed")),
             getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
             updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
+            generateThumbnailUseCase = GenerateThumbnailUseCase(fakeThumbnailRepository, fakeRepository),
         )
         fakeItems.value = listOf(videoItem())
 
@@ -200,6 +204,49 @@ class LibraryViewModelTest {
         viewModel.openMedia("id-1")
 
         assertTrue(fakeRepository.lastViewedAtUpdates.any { it.first == "id-1" })
+    }
+
+    // ── Thumbnail generation ──────────────────────────────────────────────────
+
+    @Test
+    fun `thumbnail generation is triggered for VIDEO without thumbnail`() = runTest {
+        fakeItems.value = listOf(videoItem())
+        val thumbnailRepository = FakeThumbnailRepository()
+        val vm = buildViewModel(thumbnailRepository = thumbnailRepository)
+        // Activate uiState subscription to start the generator coroutine
+        CoroutineScope(testDispatcher).launch { vm.uiState.collect() }.cancel()
+
+        assertTrue(thumbnailRepository.generatedPaths.contains(videoItem().filePath))
+    }
+
+    @Test
+    fun `thumbnail generation is not triggered for VIDEO with existing thumbnail`() = runTest {
+        fakeItems.value = listOf(videoItem().copy(thumbnailPath = "/cache/existing.jpg"))
+        val thumbnailRepository = FakeThumbnailRepository()
+        buildViewModel(thumbnailRepository = thumbnailRepository)
+
+        assertTrue(thumbnailRepository.generatedPaths.isEmpty())
+    }
+
+    @Test
+    fun `thumbnail generation is not triggered for PHOTO items`() = runTest {
+        fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.PHOTO))
+        val thumbnailRepository = FakeThumbnailRepository()
+        buildViewModel(thumbnailRepository = thumbnailRepository)
+
+        assertTrue(thumbnailRepository.generatedPaths.isEmpty())
+    }
+
+    @Test
+    fun `thumbnail generation is not repeated for same VIDEO across emissions`() = runTest {
+        fakeItems.value = listOf(videoItem())
+        val thumbnailRepository = FakeThumbnailRepository()
+        buildViewModel(thumbnailRepository = thumbnailRepository)
+
+        // Second emission of the same item
+        fakeItems.value = listOf(videoItem())
+
+        assertEquals(1, thumbnailRepository.generatedPaths.size)
     }
 
     private fun fakeFileStorage() = object : FileStorage {
