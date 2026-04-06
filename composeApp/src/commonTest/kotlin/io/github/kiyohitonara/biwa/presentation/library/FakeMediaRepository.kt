@@ -18,5 +18,11 @@ class FakeMediaRepository(
     override suspend fun deleteMedia(id: String) { items.value = items.value.filter { it.id != id } }
     override suspend fun updateLastViewedAt(id: String, timestamp: Long) { lastViewedAtUpdates.add(id to timestamp) }
     override suspend fun updateThumbnailPath(id: String, path: String) {}
-    override suspend fun updateSortOrder(id: String, sortOrder: Long) {}
+
+    /** Records each (id, sortOrder) pair passed to [updateSortOrder]. */
+    val sortOrderUpdates = mutableListOf<Pair<String, Long>>()
+
+    override suspend fun updateSortOrder(id: String, sortOrder: Long) {
+        sortOrderUpdates.add(id to sortOrder)
+    }
 }

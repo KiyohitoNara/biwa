@@ -11,7 +11,7 @@ import org.koin.dsl.module
 /** Koin module that registers all ViewModels. */
 val viewModelModule = module {
     viewModel { AddMediaViewModel(get(), get()) }
-    viewModel { LibraryViewModel(get(), get(), get(), get(), get()) }
+    viewModel { LibraryViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { params -> VideoPlayerViewModel(params.get(), get(), get(), get(), get(), get()) }
     viewModel { params -> PhotoViewerViewModel(params.get(), get(), get()) }
 }
