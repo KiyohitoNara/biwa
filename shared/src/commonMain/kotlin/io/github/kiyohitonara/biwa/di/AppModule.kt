@@ -7,6 +7,7 @@ import io.github.kiyohitonara.biwa.domain.repository.PlaybackStateRepository
 import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetAllPhotosUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetPlaybackStateUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ResetAbRepeatUseCase
@@ -24,6 +25,7 @@ val sharedModule = module {
     factory { GetAllMediaUseCase(get()) }
     factory { DeleteMediaUseCase(get(), get()) }
     factory { GetMediaByIdUseCase(get()) }
+    factory { GetAllPhotosUseCase(get()) }
     factory { UpdateLastViewedAtUseCase(get(), clock = { currentEpochSeconds() }) }
     factory { GetPlaybackStateUseCase(get()) }
     factory { SavePlaybackStateUseCase(get(), clock = { currentEpochSeconds() }) }
