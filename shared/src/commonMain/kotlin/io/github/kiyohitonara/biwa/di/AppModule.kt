@@ -8,6 +8,7 @@ import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllPhotosUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetPlaybackStateUseCase
@@ -26,6 +27,7 @@ val sharedModule = module {
     factory { GetAllMediaUseCase(get()) }
     factory { DeleteMediaUseCase(get(), get()) }
     factory { GenerateThumbnailUseCase(get(), get()) }
+    factory { ReorderMediaUseCase(get()) }
     factory { GetMediaByIdUseCase(get()) }
     factory { GetAllPhotosUseCase(get()) }
     factory { UpdateLastViewedAtUseCase(get(), clock = { currentEpochSeconds() }) }
