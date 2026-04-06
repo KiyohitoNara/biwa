@@ -1,10 +1,12 @@
 package io.github.kiyohitonara.biwa.presentation.library
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -28,11 +30,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
+import io.github.kiyohitonara.biwa.domain.model.MediaType
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Screen that displays all media items in the library as a grid. */
@@ -134,6 +138,8 @@ private fun MediaGrid(
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         items(items, key = { it.id }) { item ->
             MediaThumbnail(
@@ -149,17 +155,71 @@ private fun MediaGrid(
 @Composable
 private fun MediaThumbnail(item: MediaItem, onTap: () -> Unit, onLongPress: () -> Unit) {
     val imageModel = item.thumbnailPath ?: item.filePath
-    AsyncImage(
-        model = imageModel,
-        contentDescription = item.displayName,
-        contentScale = ContentScale.Crop,
+    Box(
         modifier = Modifier
             .aspectRatio(1f)
-            .combinedClickable(
-                onClick = onTap,
-                onLongClick = onLongPress,
-            ),
+            .combinedClickable(onClick = onTap, onLongClick = onLongPress),
+    ) {
+        AsyncImage(
+            model = imageModel,
+            contentDescription = item.displayName,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        when (item.mediaType) {
+            MediaType.VIDEO -> VideoBadge(
+                durationMs = item.durationMs,
+                modifier = Modifier.align(Alignment.BottomStart),
+            )
+            MediaType.GIF -> GifBadge(
+                modifier = Modifier.align(Alignment.BottomStart),
+            )
+            MediaType.PHOTO -> Unit
+        }
+    }
+}
+
+@Composable
+private fun VideoBadge(durationMs: Long?, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.6f))
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = "\u25B6",
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+        )
+        if (durationMs != null) {
+            Text(
+                text = formatDuration(durationMs),
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GifBadge(modifier: Modifier = Modifier) {
+    Text(
+        text = "GIF",
+        color = Color.White,
+        style = MaterialTheme.typography.labelSmall,
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.6f))
+            .padding(horizontal = 4.dp, vertical = 2.dp),
     )
+}
+
+private fun formatDuration(ms: Long): String {
+    val totalSeconds = ms / 1_000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
 }
 
 @Composable
