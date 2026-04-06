@@ -2,26 +2,40 @@ package io.github.kiyohitonara.biwa.presentation.library
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,16 +44,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import io.github.kiyohitonara.biwa.domain.model.MediaFilter
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
+import io.github.kiyohitonara.biwa.domain.model.SortOrder
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Screen that displays all media items in the library as a grid. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     onAddMedia: () -> Unit,
@@ -50,6 +73,7 @@ fun LibraryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var pendingDeleteItem by remember { mutableStateOf<MediaItem?>(null) }
+    var showSortSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(viewModel.deleteError) {
         viewModel.deleteError.collect { message ->
@@ -67,6 +91,19 @@ fun LibraryScreen(
     }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Library") },
+                actions = {
+                    IconButton(onClick = { showSortSheet = true }) {
+                        Text(
+                            text = "\u21C5",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddMedia) {
                 Text("+")
@@ -74,28 +111,46 @@ fun LibraryScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            when (val state = uiState) {
-                is LibraryUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-                is LibraryUiState.Success -> {
-                    if (state.items.isEmpty()) {
-                        EmptyLibrary(modifier = Modifier.align(Alignment.Center))
-                    } else {
-                        MediaGrid(
-                            items = state.items,
-                            onTap = { viewModel.openMedia(it.id) },
-                            onLongPress = { pendingDeleteItem = it },
-                        )
+            val successState = uiState as? LibraryUiState.Success
+            FilterChipsRow(
+                currentFilter = successState?.mediaFilter ?: MediaFilter.ALL,
+                onFilterChanged = viewModel::setMediaFilter,
+            )
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                when (val state = uiState) {
+                    is LibraryUiState.Loading -> {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    }
+                    is LibraryUiState.Success -> {
+                        if (state.items.isEmpty()) {
+                            EmptyLibrary(modifier = Modifier.align(Alignment.Center))
+                        } else {
+                            MediaGrid(
+                                items = state.items,
+                                sortOrder = state.sortOrder,
+                                onTap = { viewModel.openMedia(it.id) },
+                                onLongPress = { pendingDeleteItem = it },
+                                onReorder = viewModel::reorderMedia,
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+
+    if (showSortSheet) {
+        SortSelectionSheet(
+            currentSort = (uiState as? LibraryUiState.Success)?.sortOrder ?: SortOrder.ADDED_AT_DESC,
+            onSortSelected = { viewModel.setSortOrder(it); showSortSheet = false },
+            onDismiss = { showSortSheet = false },
+        )
     }
 
     pendingDeleteItem?.let { item ->
@@ -107,6 +162,62 @@ fun LibraryScreen(
             },
             onDismiss = { pendingDeleteItem = null },
         )
+    }
+}
+
+@Composable
+private fun FilterChipsRow(
+    currentFilter: MediaFilter,
+    onFilterChanged: (MediaFilter) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        MediaFilter.entries.forEach { filter ->
+            FilterChip(
+                selected = filter == currentFilter,
+                onClick = { onFilterChanged(filter) },
+                label = { Text(filterLabel(filter)) },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortSelectionSheet(
+    currentSort: SortOrder,
+    onSortSelected: (SortOrder) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState()
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Text(
+            text = "Sort by",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        SortOrder.entries.forEach { order ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSortSelected(order) }
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                RadioButton(
+                    selected = order == currentSort,
+                    onClick = { onSortSelected(order) },
+                )
+                Text(sortLabel(order), style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
@@ -132,6 +243,22 @@ private fun EmptyLibrary(modifier: Modifier = Modifier) {
 @Composable
 private fun MediaGrid(
     items: List<MediaItem>,
+    sortOrder: SortOrder,
+    onTap: (MediaItem) -> Unit,
+    onLongPress: (MediaItem) -> Unit,
+    onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
+) {
+    if (sortOrder == SortOrder.MANUAL) {
+        DraggableMediaGrid(items = items, onTap = onTap, onReorder = onReorder)
+    } else {
+        StaticMediaGrid(items = items, onTap = onTap, onLongPress = onLongPress)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun StaticMediaGrid(
+    items: List<MediaItem>,
     onTap: (MediaItem) -> Unit,
     onLongPress: (MediaItem) -> Unit,
 ) {
@@ -141,31 +268,123 @@ private fun MediaGrid(
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        items(items, key = { it.id }) { item ->
-            MediaThumbnail(
-                item = item,
-                onTap = { onTap(item) },
-                onLongPress = { onLongPress(item) },
-            )
+        itemsIndexed(items, key = { _, item -> item.id }) { _, item ->
+            Box(
+                modifier = Modifier
+                    .aspectRatio(1f)
+                    .combinedClickable(
+                        onClick = { onTap(item) },
+                        onLongClick = { onLongPress(item) },
+                    ),
+            ) {
+                ThumbnailImage(item)
+                MediaTypeBadge(item)
+            }
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MediaThumbnail(item: MediaItem, onTap: () -> Unit, onLongPress: () -> Unit) {
-    val imageModel = item.thumbnailPath ?: item.filePath
-    Box(
-        modifier = Modifier
-            .aspectRatio(1f)
-            .combinedClickable(onClick = onTap, onLongClick = onLongPress),
-    ) {
-        AsyncImage(
-            model = imageModel,
-            contentDescription = item.displayName,
-            contentScale = ContentScale.Crop,
+private fun DraggableMediaGrid(
+    items: List<MediaItem>,
+    onTap: (MediaItem) -> Unit,
+    onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
+) {
+    // Mutable map — not snapshot state to avoid recomposition during onGloballyPositioned
+    val itemBounds = remember { HashMap<String, Rect>() }
+    var draggedKey by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var dragStartBounds by remember { mutableStateOf(Rect.Zero) }
+    var dropTargetKey by remember { mutableStateOf<String?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
             modifier = Modifier.fillMaxSize(),
-        )
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                val isDragged = item.id == draggedKey
+                val isDropTarget = item.id == dropTargetKey && !isDragged
+                val isDragActive = draggedKey != null
+
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .onGloballyPositioned { coords ->
+                            itemBounds[item.id] = coords.boundsInRoot()
+                        }
+                        .graphicsLayer {
+                            when {
+                                isDragged -> {
+                                    scaleX = 1.07f
+                                    scaleY = 1.07f
+                                    shadowElevation = 16f
+                                    alpha = 0.85f
+                                }
+                                isDragActive && !isDropTarget -> alpha = 0.55f
+                            }
+                        }
+                        .pointerInput(item.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { _ ->
+                                    draggedKey = item.id
+                                    dropTargetKey = item.id
+                                    dragOffset = Offset.Zero
+                                    dragStartBounds = itemBounds[item.id] ?: Rect.Zero
+                                },
+                                onDrag = { _, amount ->
+                                    dragOffset += amount
+                                    val pointerPos = Offset(
+                                        dragStartBounds.center.x + dragOffset.x,
+                                        dragStartBounds.center.y + dragOffset.y,
+                                    )
+                                    dropTargetKey = itemBounds.entries
+                                        .minByOrNull { (_, bounds) ->
+                                            (pointerPos - bounds.center).getDistance()
+                                        }?.key
+                                },
+                                onDragEnd = {
+                                    val fromIdx = items.indexOfFirst { it.id == draggedKey }
+                                    val toIdx = items.indexOfFirst { it.id == dropTargetKey }
+                                    if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
+                                        onReorder(fromIdx, toIdx)
+                                    }
+                                    draggedKey = null
+                                    dropTargetKey = null
+                                    dragOffset = Offset.Zero
+                                },
+                                onDragCancel = {
+                                    draggedKey = null
+                                    dropTargetKey = null
+                                    dragOffset = Offset.Zero
+                                },
+                            )
+                        }
+                        .clickable { if (draggedKey == null) onTap(item) },
+                ) {
+                    ThumbnailImage(item)
+                    MediaTypeBadge(item)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThumbnailImage(item: MediaItem) {
+    AsyncImage(
+        model = item.thumbnailPath ?: item.filePath,
+        contentDescription = item.displayName,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
+@Composable
+private fun MediaTypeBadge(item: MediaItem, modifier: Modifier = Modifier) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (item.mediaType) {
             MediaType.VIDEO -> VideoBadge(
                 durationMs = item.durationMs,
@@ -215,13 +434,6 @@ private fun GifBadge(modifier: Modifier = Modifier) {
     )
 }
 
-private fun formatDuration(ms: Long): String {
-    val totalSeconds = ms / 1_000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
-}
-
 @Composable
 private fun DeleteConfirmationDialog(
     itemName: String,
@@ -243,4 +455,27 @@ private fun DeleteConfirmationDialog(
             }
         },
     )
+}
+
+private fun filterLabel(filter: MediaFilter) = when (filter) {
+    MediaFilter.ALL -> "All"
+    MediaFilter.VIDEO -> "Videos"
+    MediaFilter.GIF -> "GIFs"
+    MediaFilter.PHOTO -> "Photos"
+}
+
+private fun sortLabel(order: SortOrder) = when (order) {
+    SortOrder.ADDED_AT_DESC -> "Added (newest first)"
+    SortOrder.ADDED_AT_ASC -> "Added (oldest first)"
+    SortOrder.FILE_NAME -> "File name"
+    SortOrder.LAST_VIEWED_AT -> "Last viewed"
+    SortOrder.FILE_SIZE -> "File size"
+    SortOrder.MANUAL -> "Manual"
+}
+
+private fun formatDuration(ms: Long): String {
+    val totalSeconds = ms / 1_000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
 }
