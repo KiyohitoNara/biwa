@@ -1,0 +1,20 @@
+CREATE TABLE tag (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL
+);
+
+insert:
+INSERT INTO tag (id, name, created_at) VALUES (?, ?, ?);
+
+selectAll:
+SELECT * FROM tag ORDER BY name ASC;
+
+selectById:
+SELECT * FROM tag WHERE id = ?;
+
+updateName:
+UPDATE tag SET name = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM tag WHERE id = ?;

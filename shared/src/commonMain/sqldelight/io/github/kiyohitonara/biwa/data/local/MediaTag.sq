@@ -1,0 +1,23 @@
+CREATE TABLE media_tag (
+    media_id TEXT NOT NULL,
+    tag_id TEXT NOT NULL,
+    PRIMARY KEY (media_id, tag_id),
+    FOREIGN KEY (media_id) REFERENCES media_metadata(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tag(id) ON DELETE CASCADE
+);
+
+insert:
+INSERT OR IGNORE INTO media_tag (media_id, tag_id) VALUES (?, ?);
+
+deleteByMediaIdAndTagId:
+DELETE FROM media_tag WHERE media_id = ? AND tag_id = ?;
+
+selectTagsByMediaId:
+SELECT tag.*
+FROM tag
+INNER JOIN media_tag ON tag.id = media_tag.tag_id
+WHERE media_tag.media_id = ?
+ORDER BY tag.name ASC;
+
+selectAll:
+SELECT * FROM media_tag;
