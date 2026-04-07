@@ -38,6 +38,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onAbout: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -87,6 +88,19 @@ fun SettingsScreen(
                         onClick = { viewModel.setTheme(theme) },
                     )
                 }
+                HorizontalDivider()
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                SectionHeader(title = "App")
+            }
+            item {
+                SettingsRow(
+                    label = "About Biwa",
+                    value = "",
+                    onClick = onAbout,
+                )
                 HorizontalDivider()
             }
         }

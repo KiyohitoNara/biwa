@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import io.github.kiyohitonara.biwa.domain.model.AppTheme
+import io.github.kiyohitonara.biwa.presentation.about.AboutScreen
 import io.github.kiyohitonara.biwa.presentation.addmedia.AddMediaScreen
 import io.github.kiyohitonara.biwa.presentation.library.LibraryScreen
 import io.github.kiyohitonara.biwa.presentation.photoviewer.PhotoViewerScreen
@@ -27,6 +28,7 @@ private const val ROUTE_VIDEO_PLAYER = "video_player/{id}"
 private const val ROUTE_PHOTO_VIEWER = "photo_viewer/{id}"
 private const val ROUTE_TAG_MANAGEMENT = "tag_management"
 private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_ABOUT = "about"
 
 @Composable
 fun App() {
@@ -70,7 +72,13 @@ fun App() {
                 TagManagementScreen(onBack = { navController.popBackStack() })
             }
             composable(ROUTE_SETTINGS) {
-                SettingsScreen(onBack = { navController.popBackStack() })
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onAbout = { navController.navigate(ROUTE_ABOUT) },
+                )
+            }
+            composable(ROUTE_ABOUT) {
+                AboutScreen(onBack = { navController.popBackStack() })
             }
         }
     }
