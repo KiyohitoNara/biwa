@@ -78,6 +78,7 @@ fun LibraryScreen(
     onOpenVideoPlayer: (String) -> Unit,
     onOpenPhotoViewer: (String) -> Unit,
     onManageTags: () -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: LibraryViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -114,6 +115,12 @@ fun LibraryScreen(
                     IconButton(onClick = { showSortSheet = true }) {
                         Text(
                             text = "\u21C5",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    IconButton(onClick = onOpenSettings) {
+                        Text(
+                            text = "\u2699",
                             style = MaterialTheme.typography.titleMedium,
                         )
                     }
