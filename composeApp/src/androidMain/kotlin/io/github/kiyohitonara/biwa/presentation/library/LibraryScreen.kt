@@ -9,6 +9,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -16,15 +18,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
@@ -34,7 +38,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,6 +56,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -59,7 +64,11 @@ import io.github.kiyohitonara.biwa.domain.model.MediaFilter
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.model.SortOrder
+import io.github.kiyohitonara.biwa.domain.model.Tag
+import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementUiState
+import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 /** Screen that displays all media items in the library as a grid. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,7 +81,7 @@ fun LibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var pendingDeleteItem by remember { mutableStateOf<MediaItem?>(null) }
+    var contextItem by remember { mutableStateOf<MediaItem?>(null) }
     var showSortSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(viewModel.deleteError) {
@@ -120,6 +129,9 @@ fun LibraryScreen(
             FilterChipsRow(
                 currentFilter = successState?.mediaFilter ?: MediaFilter.ALL,
                 onFilterChanged = viewModel::setMediaFilter,
+                availableTags = successState?.availableTags ?: emptyList(),
+                activeTagIds = successState?.activeTagIds ?: emptySet(),
+                onTagToggled = viewModel::toggleTag,
             )
 
             Box(modifier = Modifier.fillMaxSize()) {
@@ -135,7 +147,7 @@ fun LibraryScreen(
                                 items = state.items,
                                 sortOrder = state.sortOrder,
                                 onTap = { viewModel.openMedia(it.id) },
-                                onLongPress = { pendingDeleteItem = it },
+                                onLongPress = { contextItem = it },
                                 onReorder = viewModel::reorderMedia,
                             )
                         }
@@ -153,14 +165,14 @@ fun LibraryScreen(
         )
     }
 
-    pendingDeleteItem?.let { item ->
-        DeleteConfirmationDialog(
-            itemName = item.displayName,
-            onConfirm = {
+    contextItem?.let { item ->
+        MediaContextSheet(
+            item = item,
+            onDelete = {
                 viewModel.deleteMedia(item.id)
-                pendingDeleteItem = null
+                contextItem = null
             },
-            onDismiss = { pendingDeleteItem = null },
+            onDismiss = { contextItem = null },
         )
     }
 }
@@ -169,6 +181,9 @@ fun LibraryScreen(
 private fun FilterChipsRow(
     currentFilter: MediaFilter,
     onFilterChanged: (MediaFilter) -> Unit,
+    availableTags: List<Tag>,
+    activeTagIds: Set<String>,
+    onTagToggled: (String) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -176,6 +191,7 @@ private fun FilterChipsRow(
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 8.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         MediaFilter.entries.forEach { filter ->
             FilterChip(
@@ -183,6 +199,21 @@ private fun FilterChipsRow(
                 onClick = { onFilterChanged(filter) },
                 label = { Text(filterLabel(filter)) },
             )
+        }
+
+        if (availableTags.isNotEmpty()) {
+            VerticalDivider(
+                modifier = Modifier
+                    .height(24.dp)
+                    .width(1.dp),
+            )
+            availableTags.forEach { tag ->
+                FilterChip(
+                    selected = tag.id in activeTagIds,
+                    onClick = { onTagToggled(tag.id) },
+                    label = { Text(tag.name) },
+                )
+            }
         }
     }
 }
@@ -218,6 +249,67 @@ private fun SortSelectionSheet(
             }
         }
         Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun MediaContextSheet(
+    item: MediaItem,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tagVm: TagManagementViewModel = koinViewModel(key = item.id) { parametersOf(item.id) }
+    val tagState by tagVm.uiState.collectAsStateWithLifecycle()
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(bottom = 32.dp)) {
+            Text(
+                text = item.displayName,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+
+            val ready = tagState as? TagManagementUiState.Ready
+            if (ready != null && ready.allTags.isNotEmpty()) {
+                Text(
+                    text = "Tags",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                )
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ready.allTags.forEach { tag ->
+                        FilterChip(
+                            selected = ready.mediaTags.any { it.id == tag.id },
+                            onClick = { tagVm.toggleTagForMedia(tag.id) },
+                            label = { Text(tag.name) },
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            TextButton(
+                onClick = onDelete,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+            ) {
+                Text(
+                    text = "Delete",
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
     }
 }
 
@@ -431,29 +523,6 @@ private fun GifBadge(modifier: Modifier = Modifier) {
         modifier = modifier
             .background(Color.Black.copy(alpha = 0.6f))
             .padding(horizontal = 4.dp, vertical = 2.dp),
-    )
-}
-
-@Composable
-private fun DeleteConfirmationDialog(
-    itemName: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Delete media") },
-        text = { Text("Delete \"$itemName\"? This cannot be undone.") },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Delete")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
     )
 }
 
