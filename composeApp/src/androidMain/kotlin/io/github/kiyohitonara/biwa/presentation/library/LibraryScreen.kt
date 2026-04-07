@@ -77,6 +77,7 @@ fun LibraryScreen(
     onAddMedia: () -> Unit,
     onOpenVideoPlayer: (String) -> Unit,
     onOpenPhotoViewer: (String) -> Unit,
+    onManageTags: () -> Unit,
     viewModel: LibraryViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -104,6 +105,12 @@ fun LibraryScreen(
             TopAppBar(
                 title = { Text("Library") },
                 actions = {
+                    IconButton(onClick = onManageTags) {
+                        Text(
+                            text = "\uD83C\uDFF7",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
                     IconButton(onClick = { showSortSheet = true }) {
                         Text(
                             text = "\u21C5",
