@@ -12,6 +12,7 @@ import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetUserPreferencesUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.CoroutineScope
@@ -41,6 +42,7 @@ class LibraryViewModelTest {
     private val fakeRepository = FakeMediaRepository(fakeItems)
     private val fakeThumbnailRepository = FakeThumbnailRepository()
     private val fakeTagRepository = FakeTagRepository()
+    private val fakePreferencesRepository = FakeUserPreferencesRepository()
     private lateinit var viewModel: LibraryViewModel
     private lateinit var collectionJob: Job
 
@@ -48,6 +50,7 @@ class LibraryViewModelTest {
         repository: FakeMediaRepository = fakeRepository,
         thumbnailRepository: FakeThumbnailRepository = fakeThumbnailRepository,
         tagRepository: FakeTagRepository = fakeTagRepository,
+        preferencesRepository: FakeUserPreferencesRepository = fakePreferencesRepository,
     ) = LibraryViewModel(
         getAllMediaUseCase = GetAllMediaUseCase(repository),
         deleteMediaUseCase = DeleteMediaUseCase(repository, fakeFileStorage()),
@@ -57,6 +60,7 @@ class LibraryViewModelTest {
         reorderMediaUseCase = ReorderMediaUseCase(repository),
         getAllTagsUseCase = GetAllTagsUseCase(tagRepository),
         getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(tagRepository),
+        getUserPreferencesUseCase = GetUserPreferencesUseCase(preferencesRepository),
     )
 
     @BeforeTest
@@ -135,6 +139,7 @@ class LibraryViewModelTest {
             reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
             getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
             getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
+            getUserPreferencesUseCase = GetUserPreferencesUseCase(fakePreferencesRepository),
         )
         fakeItems.value = listOf(videoItem())
 
@@ -425,6 +430,23 @@ class LibraryViewModelTest {
         fakeItems.value = listOf(videoItem())
 
         assertEquals(1, thumbnailRepository.generatedPaths.size)
+    }
+
+    // ── Default sort order from preferences ───────────────────────────────────
+
+    @Test
+    fun `uiState applies persisted default sort order on init`() = runTest {
+        val vm = buildViewModel(
+            preferencesRepository = FakeUserPreferencesRepository(
+                initial = io.github.kiyohitonara.biwa.domain.model.UserPreferences(
+                    defaultSortOrder = SortOrder.FILE_NAME,
+                ),
+            ),
+        )
+        CoroutineScope(testDispatcher).launch { vm.uiState.collect() }.cancel()
+
+        val state = assertIs<LibraryUiState.Success>(vm.uiState.value)
+        assertEquals(SortOrder.FILE_NAME, state.sortOrder)
     }
 
     // ── Tag filter ────────────────────────────────────────────────────────────

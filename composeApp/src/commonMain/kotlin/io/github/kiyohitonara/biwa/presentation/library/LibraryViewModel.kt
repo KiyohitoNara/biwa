@@ -12,6 +12,7 @@ import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetUserPreferencesUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -43,6 +45,7 @@ class LibraryViewModel(
     private val reorderMediaUseCase: ReorderMediaUseCase,
     private val getAllTagsUseCase: GetAllTagsUseCase,
     private val getMediaIdsWithAllTagsUseCase: GetMediaIdsWithAllTagsUseCase,
+    private val getUserPreferencesUseCase: GetUserPreferencesUseCase,
 ) : ViewModel() {
     // IDs for which thumbnail generation has already been scheduled this session.
     private val generatingIds = mutableSetOf<String>()
@@ -113,6 +116,10 @@ class LibraryViewModel(
     val navEffect: SharedFlow<LibraryNavEffect> = _navEffect.asSharedFlow()
 
     init {
+        viewModelScope.launch {
+            val prefs = getUserPreferencesUseCase.execute().first()
+            _sortOrder.value = prefs.defaultSortOrder
+        }
         viewModelScope.launch {
             getAllMediaUseCase.execute().collect { items ->
                 items.filter { it.thumbnailPath == null }
