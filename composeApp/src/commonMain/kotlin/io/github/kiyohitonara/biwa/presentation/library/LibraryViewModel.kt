@@ -9,7 +9,9 @@ import io.github.kiyohitonara.biwa.domain.model.SortOrder
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -19,16 +21,18 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
  * Manages UI state for the media library screen.
  *
- * Collects the full media list from [GetAllMediaUseCase] and reactively applies
- * the current [SortOrder] and [MediaFilter] via [combine] to produce [uiState].
- * Thumbnail generation for VIDEO items without a cached path is triggered
- * automatically on each library update.
+ * Reactively applies [SortOrder], [MediaFilter], and active tag IDs (AND logic)
+ * to produce [uiState]. Thumbnail generation for VIDEO items without a cached
+ * path is triggered automatically on each library update.
  */
 class LibraryViewModel(
     private val getAllMediaUseCase: GetAllMediaUseCase,
@@ -37,6 +41,8 @@ class LibraryViewModel(
     private val updateLastViewedAtUseCase: UpdateLastViewedAtUseCase,
     private val generateThumbnailUseCase: GenerateThumbnailUseCase,
     private val reorderMediaUseCase: ReorderMediaUseCase,
+    private val getAllTagsUseCase: GetAllTagsUseCase,
+    private val getMediaIdsWithAllTagsUseCase: GetMediaIdsWithAllTagsUseCase,
 ) : ViewModel() {
     // IDs for which thumbnail generation has already been scheduled this session.
     private val generatingIds = mutableSetOf<String>()
@@ -51,26 +57,50 @@ class LibraryViewModel(
     /** Currently selected media-type filter. */
     val mediaFilter: StateFlow<MediaFilter> = _mediaFilter
 
+    private val _activeTagIds = MutableStateFlow<Set<String>>(emptySet())
+
+    /** IDs of tags currently selected as filters. */
+    val activeTagIds: StateFlow<Set<String>> = _activeTagIds
+
     /**
-     * Current state of the library, reflecting the active [sortOrder] and [mediaFilter].
+     * Current state of the library, reflecting the active [sortOrder], [mediaFilter],
+     * and [activeTagIds].
      *
      * Starts as [LibraryUiState.Loading] until the first DB emission arrives.
      * The upstream flow is kept active for 5 seconds after the last subscriber
      * disappears to survive configuration changes.
      */
-    val uiState: StateFlow<LibraryUiState> = combine(
-        getAllMediaUseCase.execute(),
-        _sortOrder,
-        _mediaFilter,
-    ) { items, sortOrder, filter ->
-        val filtered = items.applyFilter(filter)
-        val sorted = filtered.applySort(sortOrder)
-        LibraryUiState.Success(items = sorted, sortOrder = sortOrder, mediaFilter = filter)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = LibraryUiState.Loading,
-    )
+    val uiState: StateFlow<LibraryUiState> = _activeTagIds
+        .flatMapLatest { tagIds ->
+            val mediaFlow = if (tagIds.isEmpty()) {
+                getAllMediaUseCase.execute()
+            } else {
+                combine(
+                    getAllMediaUseCase.execute(),
+                    getMediaIdsWithAllTagsUseCase.execute(tagIds.toList()),
+                ) { items, filteredIds -> items.filter { it.id in filteredIds } }
+            }
+
+            combine(
+                mediaFlow,
+                _sortOrder,
+                _mediaFilter,
+                getAllTagsUseCase.execute(),
+            ) { items, sortOrder, filter, allTags ->
+                LibraryUiState.Success(
+                    items = items.applyFilter(filter).applySort(sortOrder),
+                    sortOrder = sortOrder,
+                    mediaFilter = filter,
+                    availableTags = allTags,
+                    activeTagIds = tagIds,
+                )
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = LibraryUiState.Loading,
+        )
 
     private val _deleteError = MutableSharedFlow<String>()
 
@@ -103,6 +133,18 @@ class LibraryViewModel(
     /** Switches the active media-type filter to [filter]. */
     fun setMediaFilter(filter: MediaFilter) {
         _mediaFilter.value = filter
+    }
+
+    /**
+     * Toggles [tagId] in the active tag filter set.
+     *
+     * If [tagId] is already active it is removed; otherwise it is added.
+     * An empty active set means no tag filter is applied.
+     */
+    fun toggleTag(tagId: String) {
+        _activeTagIds.update { ids ->
+            if (tagId in ids) ids - tagId else ids + tagId
+        }
     }
 
     /**

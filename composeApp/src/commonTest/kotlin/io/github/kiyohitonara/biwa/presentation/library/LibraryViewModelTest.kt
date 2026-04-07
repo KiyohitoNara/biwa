@@ -2,13 +2,16 @@ package io.github.kiyohitonara.biwa.presentation.library
 
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
+import io.github.kiyohitonara.biwa.domain.model.Tag
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
 import io.github.kiyohitonara.biwa.domain.model.MediaFilter
 import io.github.kiyohitonara.biwa.domain.model.SortOrder
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.CoroutineScope
@@ -37,12 +40,14 @@ class LibraryViewModelTest {
     private val fakeItems = MutableStateFlow<List<MediaItem>>(emptyList())
     private val fakeRepository = FakeMediaRepository(fakeItems)
     private val fakeThumbnailRepository = FakeThumbnailRepository()
+    private val fakeTagRepository = FakeTagRepository()
     private lateinit var viewModel: LibraryViewModel
     private lateinit var collectionJob: Job
 
     private fun buildViewModel(
         repository: FakeMediaRepository = fakeRepository,
         thumbnailRepository: FakeThumbnailRepository = fakeThumbnailRepository,
+        tagRepository: FakeTagRepository = fakeTagRepository,
     ) = LibraryViewModel(
         getAllMediaUseCase = GetAllMediaUseCase(repository),
         deleteMediaUseCase = DeleteMediaUseCase(repository, fakeFileStorage()),
@@ -50,6 +55,8 @@ class LibraryViewModelTest {
         updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(repository, clock = { 0L }),
         generateThumbnailUseCase = GenerateThumbnailUseCase(thumbnailRepository, repository),
         reorderMediaUseCase = ReorderMediaUseCase(repository),
+        getAllTagsUseCase = GetAllTagsUseCase(tagRepository),
+        getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(tagRepository),
     )
 
     @BeforeTest
@@ -126,6 +133,8 @@ class LibraryViewModelTest {
             updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
             generateThumbnailUseCase = GenerateThumbnailUseCase(fakeThumbnailRepository, fakeRepository),
             reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
+            getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
+            getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
         )
         fakeItems.value = listOf(videoItem())
 
@@ -416,6 +425,87 @@ class LibraryViewModelTest {
         fakeItems.value = listOf(videoItem())
 
         assertEquals(1, thumbnailRepository.generatedPaths.size)
+    }
+
+    // ── Tag filter ────────────────────────────────────────────────────────────
+
+    @Test
+    fun `uiState exposes availableTags from repository`() = runTest {
+        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertEquals(1, state.availableTags.size)
+        assertEquals("Nature", state.availableTags.first().name)
+    }
+
+    @Test
+    fun `toggleTag adds tag to activeTagIds`() = runTest {
+        viewModel.toggleTag("t1")
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertTrue(state.activeTagIds.contains("t1"))
+    }
+
+    @Test
+    fun `toggleTag removes tag when already active`() = runTest {
+        viewModel.toggleTag("t1")
+        viewModel.toggleTag("t1")
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertTrue(state.activeTagIds.isEmpty())
+    }
+
+    @Test
+    fun `toggleTag filters items by active tag`() = runTest {
+        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+        fakeItems.value = listOf(
+            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+        )
+        fakeTagRepository.addTagToMedia("a", "t1")
+
+        viewModel.toggleTag("t1")
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertEquals(1, state.items.size)
+        assertEquals("a", state.items.first().id)
+    }
+
+    @Test
+    fun `toggleTag with multiple tags applies AND logic`() = runTest {
+        fakeTagRepository.tags.value = listOf(
+            Tag("t1", "Nature", 0L),
+            Tag("t2", "Travel", 0L),
+        )
+        fakeItems.value = listOf(
+            videoItem().copy(id = "both", filePath = "/media/both.mp4"),
+            videoItem().copy(id = "one", filePath = "/media/one.mp4"),
+        )
+        fakeTagRepository.addTagToMedia("both", "t1")
+        fakeTagRepository.addTagToMedia("both", "t2")
+        fakeTagRepository.addTagToMedia("one", "t1")
+
+        viewModel.toggleTag("t1")
+        viewModel.toggleTag("t2")
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertEquals(1, state.items.size)
+        assertEquals("both", state.items.first().id)
+    }
+
+    @Test
+    fun `clearing all active tags shows all items`() = runTest {
+        fakeItems.value = listOf(
+            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+        )
+        fakeTagRepository.addTagToMedia("a", "t1")
+
+        viewModel.toggleTag("t1")
+        viewModel.toggleTag("t1")
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertEquals(2, state.items.size)
     }
 
     private fun fakeFileStorage() = object : FileStorage {
