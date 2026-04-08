@@ -158,7 +158,7 @@ fun LibraryScreen(
                             EmptyLibrary(modifier = Modifier.align(Alignment.Center))
                         } else {
                             val filtersActive = state.mediaFilter != MediaFilter.ALL ||
-                                state.activeTagIds.isNotEmpty()
+                                state.activeTagIds.size > 1
                             MediaGrid(
                                 items = state.items,
                                 sortOrder = state.sortOrder,
