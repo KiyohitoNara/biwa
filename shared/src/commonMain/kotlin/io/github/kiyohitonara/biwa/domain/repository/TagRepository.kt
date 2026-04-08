@@ -34,4 +34,16 @@ interface TagRepository {
      * Returns a flow of all media IDs when [tagIds] is empty.
      */
     fun getMediaIdsWithAllTags(tagIds: List<String>): Flow<Set<String>>
+
+    /**
+     * Returns a flow of media IDs associated with [tagId], ordered by their
+     * tag-specific [sort_order][io.github.kiyohitonara.biwa.data.local.Media_tag.sort_order].
+     */
+    fun getOrderedMediaIdsForTag(tagId: String): Flow<List<String>>
+
+    /**
+     * Persists a tag-specific manual ordering by assigning sequential sort_order
+     * values to the media items identified by [orderedIds].
+     */
+    suspend fun reorderTagMedia(tagId: String, orderedIds: List<String>)
 }

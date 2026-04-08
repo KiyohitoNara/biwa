@@ -19,6 +19,8 @@ import io.github.kiyohitonara.biwa.domain.usecase.GetAllPhotosUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForTagUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.ReorderTagMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetUserPreferencesUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.SetDefaultSortOrderUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.SetThemeUseCase
@@ -61,6 +63,8 @@ val sharedModule = module {
     factory { AddTagToMediaUseCase(get()) }
     factory { RemoveTagFromMediaUseCase(get()) }
     factory { GetMediaIdsWithAllTagsUseCase(get()) }
+    factory { GetOrderedMediaIdsForTagUseCase(get()) }
+    factory { ReorderTagMediaUseCase(get()) }
     factory { GetUserPreferencesUseCase(get()) }
     factory { SetDefaultSortOrderUseCase(get()) }
     factory { SetThemeUseCase(get()) }

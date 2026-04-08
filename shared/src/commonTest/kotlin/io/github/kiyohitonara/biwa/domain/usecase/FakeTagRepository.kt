@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.map
 /** In-memory [TagRepository] for use in tests. */
 class FakeTagRepository : TagRepository {
     private val tags = MutableStateFlow<List<Tag>>(emptyList())
-    private val mediaTagAssociations = MutableStateFlow<List<Pair<String, String>>>(emptyList())
+    // Triple: (mediaId, tagId, sortOrder)
+    private val mediaTagAssociations = MutableStateFlow<List<Triple<String, String, Int>>>(emptyList())
 
     override fun getAllTags(): Flow<List<Tag>> = tags
 
@@ -38,7 +39,8 @@ class FakeTagRepository : TagRepository {
 
     override suspend fun addTagToMedia(mediaId: String, tagId: String) {
         if (mediaTagAssociations.value.none { it.first == mediaId && it.second == tagId }) {
-            mediaTagAssociations.value = mediaTagAssociations.value + (mediaId to tagId)
+            val nextOrder = mediaTagAssociations.value.filter { it.second == tagId }.size
+            mediaTagAssociations.value = mediaTagAssociations.value + Triple(mediaId, tagId, nextOrder)
         }
     }
 
@@ -56,4 +58,23 @@ class FakeTagRepository : TagRepository {
                 .keys
                 .toSet()
         }
+
+    override fun getOrderedMediaIdsForTag(tagId: String): Flow<List<String>> =
+        mediaTagAssociations.map { associations ->
+            associations.filter { it.second == tagId }
+                .sortedBy { it.third }
+                .map { it.first }
+        }
+
+    override suspend fun reorderTagMedia(tagId: String, orderedIds: List<String>) {
+        val updated = mediaTagAssociations.value.map { triple ->
+            if (triple.second == tagId) {
+                val newOrder = orderedIds.indexOf(triple.first)
+                triple.copy(third = if (newOrder != -1) newOrder else triple.third)
+            } else {
+                triple
+            }
+        }
+        mediaTagAssociations.value = updated
+    }
 }
