@@ -157,9 +157,12 @@ fun LibraryScreen(
                         if (state.items.isEmpty()) {
                             EmptyLibrary(modifier = Modifier.align(Alignment.Center))
                         } else {
+                            val filtersActive = state.mediaFilter != MediaFilter.ALL ||
+                                state.activeTagIds.isNotEmpty()
                             MediaGrid(
                                 items = state.items,
                                 sortOrder = state.sortOrder,
+                                filtersActive = filtersActive,
                                 onTap = { viewModel.openMedia(it.id) },
                                 onLongPress = { contextItem = it },
                                 onReorder = viewModel::reorderMedia,
@@ -350,11 +353,12 @@ private fun EmptyLibrary(modifier: Modifier = Modifier) {
 private fun MediaGrid(
     items: List<MediaItem>,
     sortOrder: SortOrder,
+    filtersActive: Boolean,
     onTap: (MediaItem) -> Unit,
     onLongPress: (MediaItem) -> Unit,
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
 ) {
-    if (sortOrder == SortOrder.MANUAL) {
+    if (sortOrder == SortOrder.MANUAL && !filtersActive) {
         DraggableMediaGrid(items = items, onTap = onTap, onReorder = onReorder)
     } else {
         StaticMediaGrid(items = items, onTap = onTap, onLongPress = onLongPress)
