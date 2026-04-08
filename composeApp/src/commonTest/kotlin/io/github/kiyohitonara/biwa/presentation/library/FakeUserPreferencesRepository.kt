@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** In-memory [UserPreferencesRepository] for use in tests. */
+/** In-memory [UserPreferencesRepository] for use in presentation-layer tests. */
 class FakeUserPreferencesRepository(
     initial: UserPreferences = UserPreferences(),
 ) : UserPreferencesRepository {

@@ -12,8 +12,10 @@ import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForTagUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetUserPreferencesUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.ReorderTagMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +48,8 @@ class LibraryViewModel(
     private val getAllTagsUseCase: GetAllTagsUseCase,
     private val getMediaIdsWithAllTagsUseCase: GetMediaIdsWithAllTagsUseCase,
     private val getUserPreferencesUseCase: GetUserPreferencesUseCase,
+    private val getOrderedMediaIdsForTagUseCase: GetOrderedMediaIdsForTagUseCase,
+    private val reorderTagMediaUseCase: ReorderTagMediaUseCase,
 ) : ViewModel() {
     // IDs for which thumbnail generation has already been scheduled this session.
     private val generatingIds = mutableSetOf<String>()
@@ -75,10 +79,16 @@ class LibraryViewModel(
      */
     val uiState: StateFlow<LibraryUiState> = _activeTagIds
         .flatMapLatest { tagIds ->
-            val mediaFlow = if (tagIds.isEmpty()) {
-                getAllMediaUseCase.execute()
-            } else {
-                combine(
+            val mediaFlow = when {
+                tagIds.isEmpty() -> getAllMediaUseCase.execute()
+                tagIds.size == 1 -> combine(
+                    getAllMediaUseCase.execute(),
+                    getOrderedMediaIdsForTagUseCase.execute(tagIds.first()),
+                ) { items, orderedIds ->
+                    val idIndex = orderedIds.withIndex().associate { (i, id) -> id to i }
+                    items.filter { it.id in idIndex }.sortedBy { idIndex[it.id] ?: Int.MAX_VALUE }
+                }
+                else -> combine(
                     getAllMediaUseCase.execute(),
                     getMediaIdsWithAllTagsUseCase.execute(tagIds.toList()),
                 ) { items, filteredIds -> items.filter { it.id in filteredIds } }
@@ -90,8 +100,15 @@ class LibraryViewModel(
                 _mediaFilter,
                 getAllTagsUseCase.execute(),
             ) { items, sortOrder, filter, allTags ->
+                // When a single tag is active and sort is MANUAL, the items are already
+                // ordered by the tag-specific sort_order — skip the global applySort.
+                val sortedItems = if (tagIds.size == 1 && sortOrder == SortOrder.MANUAL) {
+                    items.applyFilter(filter)
+                } else {
+                    items.applyFilter(filter).applySort(sortOrder)
+                }
                 LibraryUiState.Success(
-                    items = items.applyFilter(filter).applySort(sortOrder),
+                    items = sortedItems,
                     sortOrder = sortOrder,
                     mediaFilter = filter,
                     availableTags = allTags,
@@ -156,7 +173,11 @@ class LibraryViewModel(
 
     /**
      * Moves the item at [fromIndex] to [toIndex] within the currently displayed list
-     * and persists the new [SortOrder.MANUAL] ordering via [ReorderMediaUseCase].
+     * and persists the new ordering.
+     *
+     * When exactly one tag is active, the ordering is saved as a tag-specific sort order
+     * via [ReorderTagMediaUseCase]. Otherwise the global [SortOrder.MANUAL] ordering is
+     * updated via [ReorderMediaUseCase].
      *
      * No-op if [uiState] is not [LibraryUiState.Success].
      */
@@ -165,7 +186,15 @@ class LibraryViewModel(
         val items = state.items.toMutableList()
         val item = items.removeAt(fromIndex)
         items.add(toIndex.coerceIn(0, items.size), item)
-        viewModelScope.launch { reorderMediaUseCase.execute(items.map { it.id }) }
+        val orderedIds = items.map { it.id }
+        val singleTagId = state.activeTagIds.singleOrNull()
+        viewModelScope.launch {
+            if (singleTagId != null) {
+                reorderTagMediaUseCase.execute(singleTagId, orderedIds)
+            } else {
+                reorderMediaUseCase.execute(orderedIds)
+            }
+        }
     }
 
     /**

@@ -12,8 +12,10 @@ import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForTagUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetUserPreferencesUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.ReorderTagMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +63,8 @@ class LibraryViewModelTest {
         getAllTagsUseCase = GetAllTagsUseCase(tagRepository),
         getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(tagRepository),
         getUserPreferencesUseCase = GetUserPreferencesUseCase(preferencesRepository),
+        getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(tagRepository),
+        reorderTagMediaUseCase = ReorderTagMediaUseCase(tagRepository),
     )
 
     @BeforeTest
@@ -140,6 +144,8 @@ class LibraryViewModelTest {
             getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
             getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
             getUserPreferencesUseCase = GetUserPreferencesUseCase(fakePreferencesRepository),
+            getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
+            reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
         )
         fakeItems.value = listOf(videoItem())
 
@@ -387,6 +393,67 @@ class LibraryViewModelTest {
         assertEquals(0L, ids["b"])
         assertEquals(1L, ids["c"])
         assertEquals(2L, ids["a"])
+    }
+
+    @Test
+    fun `reorderMedia with single active tag persists tag-specific order`() = runTest {
+        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+        fakeItems.value = listOf(
+            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+            videoItem().copy(id = "c", filePath = "/media/c.mp4"),
+        )
+        fakeTagRepository.addTagToMedia("a", "t1")
+        fakeTagRepository.addTagToMedia("b", "t1")
+        fakeTagRepository.addTagToMedia("c", "t1")
+        viewModel.setSortOrder(SortOrder.MANUAL)
+        viewModel.toggleTag("t1")
+
+        // Move "a" (index 0) to index 2 → expected order: b, c, a
+        viewModel.reorderMedia(fromIndex = 0, toIndex = 2)
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertEquals(listOf("b", "c", "a"), state.items.map { it.id })
+    }
+
+    @Test
+    fun `reorderMedia with single tag does not affect global sort order`() = runTest {
+        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+        fakeItems.value = listOf(
+            videoItem().copy(id = "a", sortOrder = 0L, filePath = "/media/a.mp4"),
+            videoItem().copy(id = "b", sortOrder = 1L, filePath = "/media/b.mp4"),
+        )
+        fakeTagRepository.addTagToMedia("a", "t1")
+        fakeTagRepository.addTagToMedia("b", "t1")
+        viewModel.setSortOrder(SortOrder.MANUAL)
+        viewModel.toggleTag("t1")
+
+        viewModel.reorderMedia(fromIndex = 0, toIndex = 1)
+
+        // Global sort order (sortOrder field) should be unchanged
+        val globalOrder = fakeRepository.sortOrderUpdates
+        assertTrue(globalOrder.isEmpty())
+    }
+
+    @Test
+    fun `single tag MANUAL order is preserved when toggling off and on again`() = runTest {
+        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+        fakeItems.value = listOf(
+            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+        )
+        fakeTagRepository.addTagToMedia("a", "t1")
+        fakeTagRepository.addTagToMedia("b", "t1")
+        viewModel.setSortOrder(SortOrder.MANUAL)
+        viewModel.toggleTag("t1")
+        viewModel.reorderMedia(fromIndex = 0, toIndex = 1) // b, a
+
+        // Toggle off then on again
+        viewModel.toggleTag("t1")
+        viewModel.toggleTag("t1")
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertEquals(listOf("b", "a"), state.items.map { it.id })
     }
 
     // ── Thumbnail generation ──────────────────────────────────────────────────

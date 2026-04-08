@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.map
 /** In-memory [TagRepository] backed by [MutableStateFlow] for use in tests. */
 class FakeTagRepository : TagRepository {
     val tags = MutableStateFlow<List<Tag>>(emptyList())
-    private val associations = MutableStateFlow<List<Pair<String, String>>>(emptyList())
+    // Triple: (mediaId, tagId, sortOrder)
+    private val associations = MutableStateFlow<List<Triple<String, String, Int>>>(emptyList())
 
     override fun getAllTags(): Flow<List<Tag>> = tags
 
@@ -29,14 +30,15 @@ class FakeTagRepository : TagRepository {
     }
 
     override fun getTagsForMedia(mediaId: String): Flow<List<Tag>> =
-        associations.map { pairs ->
-            val tagIds = pairs.filter { it.first == mediaId }.map { it.second }
+        associations.map { triples ->
+            val tagIds = triples.filter { it.first == mediaId }.map { it.second }
             tags.value.filter { it.id in tagIds }
         }
 
     override suspend fun addTagToMedia(mediaId: String, tagId: String) {
         if (associations.value.none { it.first == mediaId && it.second == tagId }) {
-            associations.value = associations.value + (mediaId to tagId)
+            val nextOrder = associations.value.filter { it.second == tagId }.size
+            associations.value = associations.value + Triple(mediaId, tagId, nextOrder)
         }
     }
 
@@ -45,11 +47,29 @@ class FakeTagRepository : TagRepository {
     }
 
     override fun getMediaIdsWithAllTags(tagIds: List<String>): Flow<Set<String>> =
-        associations.map { pairs ->
+        associations.map { triples ->
             if (tagIds.isEmpty()) return@map emptySet()
-            pairs.groupBy { it.first }
+            triples.groupBy { it.first }
                 .filterValues { group -> tagIds.all { tagId -> group.any { it.second == tagId } } }
                 .keys
                 .toSet()
         }
+
+    override fun getOrderedMediaIdsForTag(tagId: String): Flow<List<String>> =
+        associations.map { triples ->
+            triples.filter { it.second == tagId }
+                .sortedBy { it.third }
+                .map { it.first }
+        }
+
+    override suspend fun reorderTagMedia(tagId: String, orderedIds: List<String>) {
+        associations.value = associations.value.map { triple ->
+            if (triple.second == tagId) {
+                val newOrder = orderedIds.indexOf(triple.first)
+                triple.copy(third = if (newOrder != -1) newOrder else triple.third)
+            } else {
+                triple
+            }
+        }
+    }
 }
