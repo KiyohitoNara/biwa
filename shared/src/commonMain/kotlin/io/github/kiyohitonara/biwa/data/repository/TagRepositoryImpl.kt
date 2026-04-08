@@ -75,5 +75,23 @@ class TagRepositoryImpl(driver: SqlDriver) : TagRepository {
                     .toSet()
             }
 
+    override fun getOrderedMediaIdsForTag(tagId: String): Flow<List<String>> =
+        mediaTagQueries.selectMediaIdsByTagOrdered(tagId)
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+
+    override suspend fun reorderTagMedia(tagId: String, orderedIds: List<String>) =
+        withContext(Dispatchers.IO) {
+            db.transaction {
+                orderedIds.forEachIndexed { index, mediaId ->
+                    mediaTagQueries.updateSortOrder(
+                        sort_order = index.toLong(),
+                        tag_id = tagId,
+                        media_id = mediaId,
+                    )
+                }
+            }
+        }
+
     private fun Tag.toDomain() = DomainTag(id = id, name = name, createdAt = created_at)
 }

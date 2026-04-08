@@ -1,13 +1,15 @@
 CREATE TABLE media_tag (
     media_id TEXT NOT NULL,
     tag_id TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (media_id, tag_id),
     FOREIGN KEY (media_id) REFERENCES media_metadata(id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES tag(id) ON DELETE CASCADE
 );
 
 insert:
-INSERT OR IGNORE INTO media_tag (media_id, tag_id) VALUES (?, ?);
+INSERT OR IGNORE INTO media_tag (media_id, tag_id, sort_order)
+VALUES (:mediaId, :tagId, (SELECT COALESCE(MAX(sort_order) + 1, 0) FROM media_tag WHERE tag_id = :tagId));
 
 deleteByMediaIdAndTagId:
 DELETE FROM media_tag WHERE media_id = ? AND tag_id = ?;
@@ -21,3 +23,9 @@ ORDER BY tag.name ASC;
 
 selectAll:
 SELECT * FROM media_tag;
+
+selectMediaIdsByTagOrdered:
+SELECT media_id FROM media_tag WHERE tag_id = ? ORDER BY sort_order ASC;
+
+updateSortOrder:
+UPDATE media_tag SET sort_order = ? WHERE tag_id = ? AND media_id = ?;
