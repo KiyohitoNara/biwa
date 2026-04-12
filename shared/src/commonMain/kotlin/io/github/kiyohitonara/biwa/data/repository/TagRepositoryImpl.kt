@@ -53,12 +53,12 @@ class TagRepositoryImpl(driver: SqlDriver) : TagRepository {
 
     override suspend fun addTagToMedia(mediaId: String, tagId: String) =
         withContext(Dispatchers.IO) {
-            mediaTagQueries.insert(media_id = mediaId, tag_id = tagId)
+            mediaTagQueries.insert(mediaId = mediaId, tagId = tagId)
         }
 
     override suspend fun removeTagFromMedia(mediaId: String, tagId: String) =
         withContext(Dispatchers.IO) {
-            mediaTagQueries.deleteByMediaIdAndTagId(media_id = mediaId, tag_id = tagId)
+            mediaTagQueries.deleteByMediaIdAndTagId(mediaId, tagId)
         }
 
     override fun getMediaIdsWithAllTags(tagIds: List<String>): Flow<Set<String>> =
