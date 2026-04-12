@@ -62,7 +62,7 @@ sqldelight {
     databases {
         create("BiwaDatabase") {
             packageName.set("io.github.kiyohitonara.biwa.data.local")
-            schemaVersion = 2
+            version = 2
             verifyMigrations = true
         }
     }
