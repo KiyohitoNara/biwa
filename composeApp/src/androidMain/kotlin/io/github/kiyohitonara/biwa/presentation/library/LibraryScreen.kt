@@ -27,6 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.CircularProgressIndicator
@@ -136,7 +137,7 @@ fun LibraryScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddMedia) {
-                Text("+")
+                Icon(Icons.Filled.Add, contentDescription = "Add media")
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
