@@ -15,6 +15,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,7 +32,17 @@ fun AddMediaScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val launcher = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
-        uri?.toString()?.let { viewModel.addMedia(it) }
+        if (uri != null) {
+            viewModel.addMedia(uri.toString())
+        } else {
+            onComplete()
+        }
+    }
+
+    LaunchedEffect(uiState) {
+        if (uiState is AddMediaUiState.Idle) {
+            launcher.launch(PickVisualMediaRequest(ImageAndVideo))
+        }
     }
 
     Column(
@@ -41,15 +52,11 @@ fun AddMediaScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Button(onClick = { launcher.launch(PickVisualMediaRequest(ImageAndVideo)) }) {
-            Text("Choose File")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         when (val state = uiState) {
             is AddMediaUiState.Idle -> {}
-            is AddMediaUiState.Loading -> CircularProgressIndicator()
+            is AddMediaUiState.Loading -> {
+                CircularProgressIndicator()
+            }
             is AddMediaUiState.Success -> {
                 Text("Added: ${state.item.displayName}")
                 Spacer(modifier = Modifier.height(8.dp))
