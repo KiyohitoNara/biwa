@@ -265,4 +265,9 @@ private class FakeTagRepository : TagRepository {
                 .filterValues { group -> tagIds.all { t -> group.any { it.second == t } } }
                 .keys.toSet()
         }
+
+    override fun getOrderedMediaIdsForTag(tagId: String): Flow<List<String>> =
+        associations.map { pairs -> pairs.filter { it.second == tagId }.map { it.first } }
+
+    override suspend fun reorderTagMedia(tagId: String, orderedIds: List<String>) {}
 }
