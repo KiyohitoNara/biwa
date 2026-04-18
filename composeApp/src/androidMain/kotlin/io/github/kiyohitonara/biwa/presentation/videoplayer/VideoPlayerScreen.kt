@@ -17,9 +17,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -269,10 +277,10 @@ private fun PlayerControls(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Text(
-                    text = "\u2190",
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleLarge,
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
                 )
             }
             Text(
@@ -323,20 +331,29 @@ private fun PlayerControls(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     IconButton(onClick = { onStepFrame(false) }) {
-                        Text("\u23EE", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                        Icon(
+                            imageVector = Icons.Filled.SkipPrevious,
+                            contentDescription = "Step backward",
+                            tint = Color.White,
+                        )
                     }
                     IconButton(
                         onClick = onTogglePlay,
                         modifier = Modifier.size(56.dp),
                     ) {
-                        Text(
-                            text = if (state.isPlaying) "\u23F8" else "\u25B6",
-                            color = Color.White,
-                            style = MaterialTheme.typography.headlineMedium,
+                        Icon(
+                            imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = if (state.isPlaying) "Pause" else "Play",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp),
                         )
                     }
                     IconButton(onClick = { onStepFrame(true) }) {
-                        Text("\u23ED", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                        Icon(
+                            imageVector = Icons.Filled.SkipNext,
+                            contentDescription = "Step forward",
+                            tint = Color.White,
+                        )
                     }
                 }
 
@@ -449,10 +466,10 @@ private fun AbRepeatControls(
         }
         if (abStartMs != null || abEndMs != null) {
             IconButton(onClick = onResetAbRepeat) {
-                Text(
-                    text = "\u2715",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Reset AB repeat",
+                    tint = Color.White,
                 )
             }
         }

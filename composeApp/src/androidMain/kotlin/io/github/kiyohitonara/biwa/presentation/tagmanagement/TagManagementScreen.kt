@@ -11,10 +11,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -66,9 +71,9 @@ fun TagManagementScreen(
                 title = { Text("Tags") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Text(
-                            text = "\u2190",
-                            style = MaterialTheme.typography.titleMedium,
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
                         )
                     }
                 },
@@ -166,16 +171,16 @@ private fun TagRow(
         )
         Row {
             IconButton(onClick = onRename) {
-                Text(
-                    text = "\u270E",
-                    style = MaterialTheme.typography.bodyLarge,
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = "Rename",
                 )
             }
             IconButton(onClick = onDelete) {
-                Text(
-                    text = "\u00D7",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.error,
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Delete",
+                    tint = MaterialTheme.colorScheme.error,
                 )
             }
         }

@@ -18,16 +18,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -107,21 +114,21 @@ fun LibraryScreen(
                 title = { Text("Library") },
                 actions = {
                     IconButton(onClick = onManageTags) {
-                        Text(
-                            text = "\uD83C\uDFF7",
-                            style = MaterialTheme.typography.titleMedium,
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Label,
+                            contentDescription = "Manage tags",
                         )
                     }
                     IconButton(onClick = { showSortSheet = true }) {
-                        Text(
-                            text = "\u21C5",
-                            style = MaterialTheme.typography.titleMedium,
+                        Icon(
+                            imageVector = Icons.Filled.SwapVert,
+                            contentDescription = "Sort",
                         )
                     }
                     IconButton(onClick = onOpenSettings) {
-                        Text(
-                            text = "\u2699",
-                            style = MaterialTheme.typography.titleMedium,
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings",
                         )
                     }
                 },
@@ -517,10 +524,11 @@ private fun VideoBadge(durationMs: Long?, modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(
-            text = "\u25B6",
-            color = Color.White,
-            style = MaterialTheme.typography.labelSmall,
+        Icon(
+            imageVector = Icons.Filled.PlayArrow,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(12.dp),
         )
         if (durationMs != null) {
             Text(
