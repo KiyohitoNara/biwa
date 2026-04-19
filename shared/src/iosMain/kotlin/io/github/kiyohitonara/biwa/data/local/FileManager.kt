@@ -1,6 +1,7 @@
 package io.github.kiyohitonara.biwa.data.local
 
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -10,6 +11,7 @@ import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSUserDomainMask
 
 /** iOS implementation that copies files into the app sandbox's Application Support directory. */
+@OptIn(ExperimentalForeignApi::class)
 actual class FileManager : FileStorage {
     actual override suspend fun copyToInternalStorage(sourceUri: String, fileName: String): String =
         withContext(Dispatchers.IO) {
