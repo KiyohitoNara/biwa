@@ -6,7 +6,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -30,8 +29,9 @@ private const val ROUTE_TAG_MANAGEMENT = "tag_management"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_ABOUT = "about"
 
+/** Android implementation that uses AndroidX Navigation Compose for the navigation graph. */
 @Composable
-fun App() {
+actual fun App() {
     val settingsViewModel: SettingsViewModel = koinViewModel()
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -82,10 +82,4 @@ fun App() {
             }
         }
     }
-}
-
-@Preview
-@Composable
-private fun AppPreview() {
-    App()
 }
