@@ -73,11 +73,11 @@ private val BrandOrange = Color(0xFFF4A44A)
 
 /** Full-screen video player screen backed by ExoPlayer. */
 @Composable
-fun VideoPlayerScreen(
+actual fun VideoPlayerScreen(
     mediaId: String,
     onBack: () -> Unit,
-    viewModel: VideoPlayerViewModel = koinViewModel(parameters = { parametersOf(mediaId) }),
 ) {
+    val viewModel: VideoPlayerViewModel = koinViewModel(parameters = { parametersOf(mediaId) })
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 

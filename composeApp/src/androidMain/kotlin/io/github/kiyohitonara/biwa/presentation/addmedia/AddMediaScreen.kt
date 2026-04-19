@@ -25,10 +25,8 @@ import org.koin.compose.viewmodel.koinViewModel
 
 /** Screen that allows the user to pick a media file and add it to the library. */
 @Composable
-fun AddMediaScreen(
-    onComplete: () -> Unit = {},
-    viewModel: AddMediaViewModel = koinViewModel(),
-) {
+actual fun AddMediaScreen(onComplete: () -> Unit) {
+    val viewModel: AddMediaViewModel = koinViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val launcher = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
