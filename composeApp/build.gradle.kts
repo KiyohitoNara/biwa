@@ -14,6 +14,8 @@ kotlin {
         }
     }
 
+    jvm()
+
     listOf(iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
@@ -49,6 +51,12 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+        }
+        jvmTest.dependencies {
+            implementation(libs.compose.ui.test)
+            implementation(compose.desktop.currentOs)
+            implementation(libs.kotlin.testJunit)
+            implementation(libs.kotlinx.coroutines.swing)
         }
     }
 }
