@@ -27,11 +27,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.outlined.PermMedia
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -94,6 +96,7 @@ fun LibraryScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var contextItem by remember { mutableStateOf<MediaItem?>(null) }
     var showSortSheet by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(viewModel.deleteError) {
         viewModel.deleteError.collect { message ->
@@ -127,10 +130,19 @@ fun LibraryScreen(
                             contentDescription = "Sort",
                         )
                     }
-                    IconButton(onClick = onOpenSettings) {
+                    IconButton(onClick = { showOverflowMenu = true }) {
                         Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = "Settings",
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "More options",
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showOverflowMenu,
+                        onDismissRequest = { showOverflowMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Settings") },
+                            onClick = { showOverflowMenu = false; onOpenSettings() },
                         )
                     }
                 },
