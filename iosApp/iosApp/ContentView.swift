@@ -1,14 +1,17 @@
 import SwiftUI
+import ComposeApp
 
 struct ContentView: View {
     var body: some View {
-        Text("Biwa")
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ComposeView()
+            .ignoresSafeArea(.all)
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
+struct ComposeView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController {
+        MainViewControllerKt.MainViewController()
     }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 }
