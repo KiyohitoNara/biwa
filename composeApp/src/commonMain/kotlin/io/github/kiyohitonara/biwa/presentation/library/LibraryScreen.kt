@@ -49,7 +49,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,7 +70,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import io.github.kiyohitonara.biwa.domain.model.MediaFilter
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.model.SortOrder
@@ -161,9 +159,7 @@ fun LibraryScreen(
                 .padding(innerPadding),
         ) {
             val successState = uiState as? LibraryUiState.Success
-            FilterChipsRow(
-                currentFilter = successState?.mediaFilter ?: MediaFilter.ALL,
-                onFilterChanged = viewModel::setMediaFilter,
+            TagFilterChipsRow(
                 availableTags = successState?.availableTags ?: emptyList(),
                 activeTagIds = successState?.activeTagIds ?: emptySet(),
                 onTagToggled = viewModel::toggleTag,
@@ -178,8 +174,7 @@ fun LibraryScreen(
                         if (state.items.isEmpty()) {
                             EmptyLibrary(modifier = Modifier.align(Alignment.Center))
                         } else {
-                            val filtersActive = state.mediaFilter != MediaFilter.ALL ||
-                                state.activeTagIds.size > 1
+                            val filtersActive = state.activeTagIds.size > 1
                             MediaGrid(
                                 items = state.items,
                                 sortOrder = state.sortOrder,
@@ -216,13 +211,12 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun FilterChipsRow(
-    currentFilter: MediaFilter,
-    onFilterChanged: (MediaFilter) -> Unit,
+private fun TagFilterChipsRow(
     availableTags: List<Tag>,
     activeTagIds: Set<String>,
     onTagToggled: (String) -> Unit,
 ) {
+    if (availableTags.isEmpty()) return
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -231,27 +225,12 @@ private fun FilterChipsRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        MediaFilter.entries.forEach { filter ->
+        availableTags.forEach { tag ->
             FilterChip(
-                selected = filter == currentFilter,
-                onClick = { onFilterChanged(filter) },
-                label = { Text(filterLabel(filter)) },
+                selected = tag.id in activeTagIds,
+                onClick = { onTagToggled(tag.id) },
+                label = { Text(tag.name) },
             )
-        }
-
-        if (availableTags.isNotEmpty()) {
-            VerticalDivider(
-                modifier = Modifier
-                    .height(24.dp)
-                    .width(1.dp),
-            )
-            availableTags.forEach { tag ->
-                FilterChip(
-                    selected = tag.id in activeTagIds,
-                    onClick = { onTagToggled(tag.id) },
-                    label = { Text(tag.name) },
-                )
-            }
         }
     }
 }
@@ -575,13 +554,6 @@ private fun GifBadge(modifier: Modifier = Modifier) {
             .background(Color.Black.copy(alpha = 0.6f))
             .padding(horizontal = 4.dp, vertical = 2.dp),
     )
-}
-
-private fun filterLabel(filter: MediaFilter) = when (filter) {
-    MediaFilter.ALL -> "All"
-    MediaFilter.VIDEO -> "Videos"
-    MediaFilter.GIF -> "GIFs"
-    MediaFilter.PHOTO -> "Photos"
 }
 
 private fun sortLabel(order: SortOrder) = when (order) {

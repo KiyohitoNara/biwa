@@ -4,7 +4,6 @@ import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.model.Tag
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
-import io.github.kiyohitonara.biwa.domain.model.MediaFilter
 import io.github.kiyohitonara.biwa.domain.model.SortOrder
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
@@ -304,73 +303,6 @@ class LibraryViewModelTest {
 
         val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
         assertEquals(SortOrder.FILE_NAME, state.sortOrder)
-    }
-
-    // ── Media filter ──────────────────────────────────────────────────────────
-
-    @Test
-    fun `setMediaFilter VIDEO shows only VIDEO items`() = runTest {
-        fakeItems.value = listOf(
-            videoItem(),
-            videoItem().copy(id = "photo", mediaType = MediaType.PHOTO),
-        )
-
-        viewModel.setMediaFilter(MediaFilter.VIDEO)
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(1, state.items.size)
-        assertEquals(MediaType.VIDEO, state.items.single().mediaType)
-    }
-
-    @Test
-    fun `setMediaFilter GIF shows only GIF items`() = runTest {
-        fakeItems.value = listOf(
-            videoItem(),
-            videoItem().copy(id = "gif", mediaType = MediaType.GIF),
-        )
-
-        viewModel.setMediaFilter(MediaFilter.GIF)
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(1, state.items.size)
-        assertEquals(MediaType.GIF, state.items.single().mediaType)
-    }
-
-    @Test
-    fun `setMediaFilter PHOTO shows only PHOTO items`() = runTest {
-        fakeItems.value = listOf(
-            videoItem(),
-            videoItem().copy(id = "photo", mediaType = MediaType.PHOTO),
-        )
-
-        viewModel.setMediaFilter(MediaFilter.PHOTO)
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(1, state.items.size)
-        assertEquals(MediaType.PHOTO, state.items.single().mediaType)
-    }
-
-    @Test
-    fun `setMediaFilter ALL shows all items`() = runTest {
-        fakeItems.value = listOf(
-            videoItem(),
-            videoItem().copy(id = "photo", mediaType = MediaType.PHOTO),
-            videoItem().copy(id = "gif", mediaType = MediaType.GIF),
-        )
-        viewModel.setMediaFilter(MediaFilter.VIDEO)
-
-        viewModel.setMediaFilter(MediaFilter.ALL)
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(3, state.items.size)
-    }
-
-    @Test
-    fun `setMediaFilter updates mediaFilter in uiState`() = runTest {
-        viewModel.setMediaFilter(MediaFilter.PHOTO)
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(MediaFilter.PHOTO, state.mediaFilter)
     }
 
     // ── Manual reorder ────────────────────────────────────────────────────────

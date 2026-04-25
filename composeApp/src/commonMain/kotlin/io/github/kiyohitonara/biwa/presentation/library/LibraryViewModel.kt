@@ -2,7 +2,6 @@ package io.github.kiyohitonara.biwa.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.kiyohitonara.biwa.domain.model.MediaFilter
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.model.SortOrder
@@ -34,7 +33,7 @@ import kotlinx.coroutines.launch
 /**
  * Manages UI state for the media library screen.
  *
- * Reactively applies [SortOrder], [MediaFilter], and active tag IDs (AND logic)
+ * Reactively applies [SortOrder] and active tag IDs (AND logic)
  * to produce [uiState]. Thumbnail generation for VIDEO items without a cached
  * path is triggered automatically on each library update.
  */
@@ -59,19 +58,13 @@ class LibraryViewModel(
     /** Currently selected sort order. */
     val sortOrder: StateFlow<SortOrder> = _sortOrder
 
-    private val _mediaFilter = MutableStateFlow(MediaFilter.ALL)
-
-    /** Currently selected media-type filter. */
-    val mediaFilter: StateFlow<MediaFilter> = _mediaFilter
-
     private val _activeTagIds = MutableStateFlow<Set<String>>(emptySet())
 
     /** IDs of tags currently selected as filters. */
     val activeTagIds: StateFlow<Set<String>> = _activeTagIds
 
     /**
-     * Current state of the library, reflecting the active [sortOrder], [mediaFilter],
-     * and [activeTagIds].
+     * Current state of the library, reflecting the active [sortOrder] and [activeTagIds].
      *
      * Starts as [LibraryUiState.Loading] until the first DB emission arrives.
      * The upstream flow is kept active for 5 seconds after the last subscriber
@@ -97,20 +90,18 @@ class LibraryViewModel(
             combine(
                 mediaFlow,
                 _sortOrder,
-                _mediaFilter,
                 getAllTagsUseCase.execute(),
-            ) { items, sortOrder, filter, allTags ->
+            ) { items, sortOrder, allTags ->
                 // When a single tag is active and sort is MANUAL, the items are already
                 // ordered by the tag-specific sort_order — skip the global applySort.
                 val sortedItems = if (tagIds.size == 1 && sortOrder == SortOrder.MANUAL) {
-                    items.applyFilter(filter)
+                    items
                 } else {
-                    items.applyFilter(filter).applySort(sortOrder)
+                    items.applySort(sortOrder)
                 }
                 LibraryUiState.Success(
                     items = sortedItems,
                     sortOrder = sortOrder,
-                    mediaFilter = filter,
                     availableTags = allTags,
                     activeTagIds = tagIds,
                 )
@@ -152,11 +143,6 @@ class LibraryViewModel(
     /** Switches the active sort order to [sortOrder]. */
     fun setSortOrder(sortOrder: SortOrder) {
         _sortOrder.value = sortOrder
-    }
-
-    /** Switches the active media-type filter to [filter]. */
-    fun setMediaFilter(filter: MediaFilter) {
-        _mediaFilter.value = filter
     }
 
     /**
@@ -232,13 +218,6 @@ class LibraryViewModel(
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
-
-    private fun List<MediaItem>.applyFilter(filter: MediaFilter) = when (filter) {
-        MediaFilter.ALL -> this
-        MediaFilter.VIDEO -> filter { it.mediaType == MediaType.VIDEO }
-        MediaFilter.GIF -> filter { it.mediaType == MediaType.GIF }
-        MediaFilter.PHOTO -> filter { it.mediaType == MediaType.PHOTO }
-    }
 
     private fun List<MediaItem>.applySort(sortOrder: SortOrder) = when (sortOrder) {
         SortOrder.ADDED_AT_DESC -> sortedByDescending { it.addedAt }
