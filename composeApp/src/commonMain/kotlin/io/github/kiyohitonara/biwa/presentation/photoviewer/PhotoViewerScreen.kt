@@ -17,7 +17,10 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +58,10 @@ fun PhotoViewerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(viewModel.navigateBack) {
+        viewModel.navigateBack.collect { onBack() }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -80,6 +87,7 @@ fun PhotoViewerScreen(
                     onBack = onBack,
                     onPageChanged = viewModel::onPhotoChanged,
                     onToggleToolbar = viewModel::toggleToolbar,
+                    onDelete = viewModel::deleteCurrentPhoto,
                 )
             }
         }
@@ -92,8 +100,10 @@ private fun PhotoViewerContent(
     onBack: () -> Unit,
     onPageChanged: (Int) -> Unit,
     onToggleToolbar: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     var isZoomed by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
 
     val pagerState = rememberPagerState(
         initialPage = state.currentIndex,
@@ -149,7 +159,28 @@ private fun PhotoViewerContent(
                         color = Color.White,
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
+                        modifier = Modifier.weight(1f),
                     )
+                } else {
+                    Box(modifier = Modifier.weight(1f))
+                }
+                Box {
+                    IconButton(onClick = { showOverflowMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "More options",
+                            tint = Color.White,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showOverflowMenu,
+                        onDismissRequest = { showOverflowMenu = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = { showOverflowMenu = false; onDelete() },
+                        )
+                    }
                 }
             }
         }

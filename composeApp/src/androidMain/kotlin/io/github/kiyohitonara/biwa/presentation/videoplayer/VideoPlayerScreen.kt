@@ -20,11 +20,14 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -87,6 +90,10 @@ actual fun VideoPlayerScreen(
         }
     }
 
+    LaunchedEffect(viewModel.navigateBack) {
+        viewModel.navigateBack.collect { onBack() }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -111,6 +118,7 @@ actual fun VideoPlayerScreen(
                     state = state,
                     viewModel = viewModel,
                     onBack = onBack,
+                    onDelete = viewModel::deleteMedia,
                 )
             }
         }
@@ -128,6 +136,7 @@ private fun VideoPlayerContent(
     state: VideoPlayerUiState.Ready,
     viewModel: VideoPlayerViewModel,
     onBack: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
     var showSpeedSheet by remember { mutableStateOf(false) }
@@ -219,6 +228,7 @@ private fun VideoPlayerContent(
             PlayerControls(
                 state = state,
                 onBack = onBack,
+                onDelete = onDelete,
                 onTogglePlay = {
                     if (player.isPlaying) player.pause() else player.play()
                 },
@@ -257,6 +267,7 @@ private fun VideoPlayerContent(
 private fun PlayerControls(
     state: VideoPlayerUiState.Ready,
     onBack: () -> Unit,
+    onDelete: () -> Unit,
     onTogglePlay: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onStepFrame: (forward: Boolean) -> Unit,
@@ -265,6 +276,7 @@ private fun PlayerControls(
     onResetAbRepeat: () -> Unit,
 ) {
     val scrim = Color.Black.copy(alpha = 0.5f)
+    var showOverflowMenu by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Top bar
@@ -288,7 +300,26 @@ private fun PlayerControls(
                 color = Color.White,
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
+                modifier = Modifier.weight(1f),
             )
+            Box {
+                IconButton(onClick = { showOverflowMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Filled.MoreVert,
+                        contentDescription = "More options",
+                        tint = Color.White,
+                    )
+                }
+                DropdownMenu(
+                    expanded = showOverflowMenu,
+                    onDismissRequest = { showOverflowMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = { showOverflowMenu = false; onDelete() },
+                    )
+                }
+            }
         }
 
         // Bottom controls
