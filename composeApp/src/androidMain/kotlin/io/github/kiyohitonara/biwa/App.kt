@@ -12,7 +12,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import io.github.kiyohitonara.biwa.domain.model.AppTheme
 import io.github.kiyohitonara.biwa.presentation.about.AboutScreen
-import io.github.kiyohitonara.biwa.presentation.addmedia.AddMediaScreen
 import io.github.kiyohitonara.biwa.presentation.library.LibraryScreen
 import io.github.kiyohitonara.biwa.presentation.photoviewer.PhotoViewerScreen
 import io.github.kiyohitonara.biwa.presentation.settings.SettingsScreen
@@ -22,7 +21,6 @@ import io.github.kiyohitonara.biwa.presentation.videoplayer.VideoPlayerScreen
 import org.koin.compose.viewmodel.koinViewModel
 
 private const val ROUTE_LIBRARY = "library"
-private const val ROUTE_ADD_MEDIA = "add_media"
 private const val ROUTE_VIDEO_PLAYER = "video_player/{id}"
 private const val ROUTE_PHOTO_VIEWER = "photo_viewer/{id}"
 private const val ROUTE_TAG_MANAGEMENT = "tag_management"
@@ -46,15 +44,11 @@ actual fun App() {
         NavHost(navController = navController, startDestination = ROUTE_LIBRARY) {
             composable(ROUTE_LIBRARY) {
                 LibraryScreen(
-                    onAddMedia = { navController.navigate(ROUTE_ADD_MEDIA) },
                     onOpenVideoPlayer = { id -> navController.navigate("video_player/$id") },
                     onOpenPhotoViewer = { id -> navController.navigate("photo_viewer/$id") },
                     onManageTags = { navController.navigate(ROUTE_TAG_MANAGEMENT) },
                     onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
                 )
-            }
-            composable(ROUTE_ADD_MEDIA) {
-                AddMediaScreen(onComplete = { navController.popBackStack() })
             }
             composable(ROUTE_VIDEO_PLAYER) { backStackEntry ->
                 VideoPlayerScreen(

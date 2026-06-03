@@ -35,7 +35,6 @@ class LibraryScreenTest {
     fun `clicking More options opens overflow menu with Settings item`() = runComposeUiTest {
         setContent {
             LibraryScreen(
-                onAddMedia = {},
                 onOpenVideoPlayer = {},
                 onOpenPhotoViewer = {},
                 onManageTags = {},
@@ -52,7 +51,6 @@ class LibraryScreenTest {
         var settingsOpened = false
         setContent {
             LibraryScreen(
-                onAddMedia = {},
                 onOpenVideoPlayer = {},
                 onOpenPhotoViewer = {},
                 onManageTags = {},
@@ -69,7 +67,6 @@ class LibraryScreenTest {
     fun `overflow menu is dismissed after clicking Settings`() = runComposeUiTest {
         setContent {
             LibraryScreen(
-                onAddMedia = {},
                 onOpenVideoPlayer = {},
                 onOpenPhotoViewer = {},
                 onManageTags = {},

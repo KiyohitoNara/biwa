@@ -11,7 +11,6 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.kiyohitonara.biwa.domain.model.AppTheme
 import io.github.kiyohitonara.biwa.presentation.about.AboutScreen
-import io.github.kiyohitonara.biwa.presentation.addmedia.AddMediaScreen
 import io.github.kiyohitonara.biwa.presentation.library.LibraryScreen
 import io.github.kiyohitonara.biwa.presentation.photoviewer.PhotoViewerScreen
 import io.github.kiyohitonara.biwa.presentation.settings.SettingsScreen
@@ -22,7 +21,6 @@ import org.koin.compose.viewmodel.koinViewModel
 
 private sealed interface Screen {
     data object Library : Screen
-    data object AddMedia : Screen
     data class VideoPlayer(val id: String) : Screen
     data class PhotoViewer(val id: String) : Screen
     data object TagManagement : Screen
@@ -49,13 +47,11 @@ actual fun App() {
 
         when (val screen = current) {
             is Screen.Library -> LibraryScreen(
-                onAddMedia = { backStack.add(Screen.AddMedia) },
                 onOpenVideoPlayer = { id -> backStack.add(Screen.VideoPlayer(id)) },
                 onOpenPhotoViewer = { id -> backStack.add(Screen.PhotoViewer(id)) },
                 onManageTags = { backStack.add(Screen.TagManagement) },
                 onOpenSettings = { backStack.add(Screen.Settings) },
             )
-            is Screen.AddMedia -> AddMediaScreen(onComplete = goBack)
             is Screen.VideoPlayer -> VideoPlayerScreen(mediaId = screen.id, onBack = goBack)
             is Screen.PhotoViewer -> PhotoViewerScreen(mediaId = screen.id, onBack = goBack)
             is Screen.TagManagement -> TagManagementScreen(onBack = goBack)

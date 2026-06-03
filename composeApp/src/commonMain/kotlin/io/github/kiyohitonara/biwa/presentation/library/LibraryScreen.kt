@@ -40,6 +40,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
@@ -83,7 +84,6 @@ import org.koin.core.parameter.parametersOf
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
-    onAddMedia: () -> Unit,
     onOpenVideoPlayer: (String) -> Unit,
     onOpenPhotoViewer: (String) -> Unit,
     onManageTags: () -> Unit,
@@ -91,13 +91,21 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isAdding by viewModel.isAdding.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var contextItem by remember { mutableStateOf<MediaItem?>(null) }
     var showSortSheet by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var pickerActive by remember { mutableStateOf(false) }
 
     LaunchedEffect(viewModel.deleteError) {
         viewModel.deleteError.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(viewModel.addMediaError) {
+        viewModel.addMediaError.collect { message ->
             snackbarHostState.showSnackbar(message)
         }
     }
@@ -147,7 +155,7 @@ fun LibraryScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddMedia) {
+            FloatingActionButton(onClick = { pickerActive = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Add media")
             }
         },
@@ -158,6 +166,9 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
+            if (isAdding) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
             val successState = uiState as? LibraryUiState.Success
             TagFilterChipsRow(
                 availableTags = successState?.availableTags ?: emptyList(),
@@ -189,6 +200,15 @@ fun LibraryScreen(
             }
         }
     }
+
+    MediaPicker(
+        active = pickerActive,
+        onPicked = { uris ->
+            pickerActive = false
+            viewModel.addMedia(uris)
+        },
+        onCancel = { pickerActive = false },
+    )
 
     if (showSortSheet) {
         SortSelectionSheet(
