@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.kiyohitonara.biwa.domain.model.AbPoint
 import io.github.kiyohitonara.biwa.domain.model.SetAbPointResult
+import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetPlaybackStateUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ResetAbRepeatUseCase
@@ -33,6 +34,7 @@ class VideoPlayerViewModel(
     private val savePlaybackStateUseCase: SavePlaybackStateUseCase,
     private val setAbPointUseCase: SetAbPointUseCase,
     private val resetAbRepeatUseCase: ResetAbRepeatUseCase,
+    private val deleteMediaUseCase: DeleteMediaUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<VideoPlayerUiState>(VideoPlayerUiState.Loading)
 
@@ -43,6 +45,11 @@ class VideoPlayerViewModel(
 
     /** Emits when an AB-point is rejected because it would produce an invalid range (B ≤ A). */
     val abRepeatError: SharedFlow<Unit> = _abRepeatError.asSharedFlow()
+
+    private val _navigateBack = MutableSharedFlow<Unit>()
+
+    /** Emits when the screen should pop back to the library (e.g. after the media is deleted). */
+    val navigateBack: SharedFlow<Unit> = _navigateBack.asSharedFlow()
 
     init {
         viewModelScope.launch { loadMediaItem() }
@@ -136,8 +143,10 @@ class VideoPlayerViewModel(
     /**
      * Persists the current playback state to the repository.
      * Automatically called when the ViewModel is cleared (screen leaves composition).
+     * No-op once the media has been deleted to avoid resurrecting orphan playback state.
      */
     fun saveCurrentState() {
+        if (deleted) return
         val state = _uiState.value as? VideoPlayerUiState.Ready ?: return
         viewModelScope.launch {
             savePlaybackStateUseCase.execute(
@@ -147,6 +156,21 @@ class VideoPlayerViewModel(
                 abEndMs = state.abEndMs,
                 playbackSpeed = state.playbackSpeed,
             )
+        }
+    }
+
+    private var deleted = false
+
+    /**
+     * Deletes the current media item along with its file and emits [navigateBack]
+     * so the screen returns to the library. Once invoked, [saveCurrentState] becomes
+     * a no-op to prevent resurrecting playback state for the deleted media.
+     */
+    fun deleteMedia() {
+        viewModelScope.launch {
+            deleteMediaUseCase.execute(mediaId)
+            deleted = true
+            _navigateBack.emit(Unit)
         }
     }
 

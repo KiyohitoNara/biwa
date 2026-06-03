@@ -4,6 +4,8 @@ import io.github.kiyohitonara.biwa.domain.model.AbPoint
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.model.PlaybackState
+import io.github.kiyohitonara.biwa.domain.storage.FileStorage
+import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetPlaybackStateUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ResetAbRepeatUseCase
@@ -40,7 +42,14 @@ class VideoPlayerViewModelTest {
         savePlaybackStateUseCase = SavePlaybackStateUseCase(fakePlaybackRepository, clock = { 0L }),
         setAbPointUseCase = SetAbPointUseCase(fakePlaybackRepository, clock = { 0L }),
         resetAbRepeatUseCase = ResetAbRepeatUseCase(fakePlaybackRepository, clock = { 0L }),
+        deleteMediaUseCase = DeleteMediaUseCase(fakeMediaRepository, fakeFileStorage()),
     )
+
+    private fun fakeFileStorage() = object : FileStorage {
+        override suspend fun copyToInternalStorage(sourceUri: String, fileName: String) =
+            "/internal/media/$fileName"
+        override suspend fun deleteFromInternalStorage(filePath: String) {}
+    }
 
     @BeforeTest
     fun setup() {
@@ -289,6 +298,42 @@ class VideoPlayerViewModelTest {
         val saved = fakePlaybackRepository.getPlaybackState("video-1")
         assertEquals(15_000L, saved?.positionMs)
         assertEquals(2.0f, saved?.playbackSpeed)
+    }
+
+    // ── deleteMedia ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `deleteMedia removes the media from the repository`() = runTest {
+        fakeMediaRepository.addMedia(videoItem())
+        val viewModel = buildViewModel()
+
+        viewModel.deleteMedia()
+
+        assertNull(fakeMediaRepository.getMediaById("video-1"))
+    }
+
+    @Test
+    fun `deleteMedia emits navigateBack`() = runTest(testDispatcher) {
+        fakeMediaRepository.addMedia(videoItem())
+        val viewModel = buildViewModel()
+        var backFired = false
+        val job = launch { viewModel.navigateBack.collect { backFired = true } }
+
+        viewModel.deleteMedia()
+        job.cancel()
+
+        assertTrue(backFired)
+    }
+
+    @Test
+    fun `saveCurrentState is a no-op after deleteMedia`() = runTest {
+        fakeMediaRepository.addMedia(videoItem())
+        val viewModel = buildViewModel()
+
+        viewModel.deleteMedia()
+        viewModel.saveCurrentState()
+
+        assertNull(fakePlaybackRepository.getPlaybackState("video-1"))
     }
 
     private fun videoItem() = MediaItem(
