@@ -1,10 +1,13 @@
 package io.github.kiyohitonara.biwa.presentation.library
 
+import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
+import io.github.kiyohitonara.biwa.domain.model.MediaFileMetadata
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.model.Tag
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
 import io.github.kiyohitonara.biwa.domain.model.SortOrder
+import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
@@ -64,7 +67,16 @@ class LibraryViewModelTest {
         getUserPreferencesUseCase = GetUserPreferencesUseCase(preferencesRepository),
         getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(tagRepository),
         reorderTagMediaUseCase = ReorderTagMediaUseCase(tagRepository),
+        addMediaUseCase = AddMediaUseCase(repository, fakeFileStorage(), clock = { 0L }),
+        metadataExtractor = fakeMetadataExtractor(),
     )
+
+    private fun fakeMetadataExtractor() = object : MediaMetadataExtractor {
+        override suspend fun extract(sourceUri: String) = MediaFileMetadata(
+            fileName = sourceUri.substringAfterLast("/"),
+            mediaType = MediaType.PHOTO,
+        )
+    }
 
     @BeforeTest
     fun setup() {
@@ -145,6 +157,8 @@ class LibraryViewModelTest {
             getUserPreferencesUseCase = GetUserPreferencesUseCase(fakePreferencesRepository),
             getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
             reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
+            addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
+            metadataExtractor = fakeMetadataExtractor(),
         )
         fakeItems.value = listOf(videoItem())
 
@@ -527,6 +541,73 @@ class LibraryViewModelTest {
 
         val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
         assertEquals(2, state.items.size)
+    }
+
+    @Test
+    fun `addMedia is no-op on empty list`() = runTest {
+        viewModel.addMedia(emptyList())
+
+        assertEquals(false, viewModel.isAdding.value)
+    }
+
+    @Test
+    fun `addMedia resets isAdding to false after completion`() = runTest(testDispatcher) {
+        viewModel.addMedia(listOf("content://media/a.jpg"))
+
+        assertEquals(false, viewModel.isAdding.value)
+    }
+
+    @Test
+    fun `addMedia inserts items into repository on success`() = runTest(testDispatcher) {
+        viewModel.addMedia(listOf("content://media/a.jpg", "content://media/b.jpg"))
+
+        assertEquals(2, fakeRepository.getAllMedia().first().size)
+    }
+
+    @Test
+    fun `addMedia emits addMediaError summary on partial failure`() = runTest(testDispatcher) {
+        val partialExtractor = object : MediaMetadataExtractor {
+            override suspend fun extract(sourceUri: String): MediaFileMetadata {
+                if (sourceUri.endsWith("bad.jpg")) error("bad file")
+                return MediaFileMetadata(
+                    fileName = sourceUri.substringAfterLast("/"),
+                    mediaType = MediaType.PHOTO,
+                )
+            }
+        }
+        val partialViewModel = LibraryViewModel(
+            getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
+            deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage()),
+            getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
+            updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
+            generateThumbnailUseCase = GenerateThumbnailUseCase(fakeThumbnailRepository, fakeRepository),
+            reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
+            getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
+            getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
+            getUserPreferencesUseCase = GetUserPreferencesUseCase(fakePreferencesRepository),
+            getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
+            reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
+            addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
+            metadataExtractor = partialExtractor,
+        )
+        var received: String? = null
+        val job = launch { partialViewModel.addMediaError.collect { received = it } }
+
+        partialViewModel.addMedia(listOf("content://media/good.jpg", "content://media/bad.jpg"))
+        job.cancel()
+
+        assertEquals("Added 1, failed 1", received)
+    }
+
+    @Test
+    fun `addMedia does not emit addMediaError when all succeed`() = runTest(testDispatcher) {
+        var received: String? = null
+        val job = launch { viewModel.addMediaError.collect { received = it } }
+
+        viewModel.addMedia(listOf("content://media/a.jpg"))
+        job.cancel()
+
+        assertEquals(null, received)
     }
 
     private fun fakeFileStorage() = object : FileStorage {

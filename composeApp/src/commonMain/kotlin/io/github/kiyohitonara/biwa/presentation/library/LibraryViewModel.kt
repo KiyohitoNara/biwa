@@ -2,9 +2,12 @@ package io.github.kiyohitonara.biwa.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
+import io.github.kiyohitonara.biwa.domain.model.AddMediaRequest
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.model.SortOrder
+import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
@@ -49,6 +52,8 @@ class LibraryViewModel(
     private val getUserPreferencesUseCase: GetUserPreferencesUseCase,
     private val getOrderedMediaIdsForTagUseCase: GetOrderedMediaIdsForTagUseCase,
     private val reorderTagMediaUseCase: ReorderTagMediaUseCase,
+    private val addMediaUseCase: AddMediaUseCase,
+    private val metadataExtractor: MediaMetadataExtractor,
 ) : ViewModel() {
     // IDs for which thumbnail generation has already been scheduled this session.
     private val generatingIds = mutableSetOf<String>()
@@ -117,6 +122,16 @@ class LibraryViewModel(
 
     /** Emits an error message when a deletion fails. One-shot event. */
     val deleteError: SharedFlow<String> = _deleteError.asSharedFlow()
+
+    private val _isAdding = MutableStateFlow(false)
+
+    /** True while one or more media files are being added to the library. */
+    val isAdding: StateFlow<Boolean> = _isAdding
+
+    private val _addMediaError = MutableSharedFlow<String>()
+
+    /** Emits a summary message when at least one file failed during an add operation. */
+    val addMediaError: SharedFlow<String> = _addMediaError.asSharedFlow()
 
     private val _navEffect = MutableSharedFlow<LibraryNavEffect>()
 
@@ -195,6 +210,51 @@ class LibraryViewModel(
                 deleteMediaUseCase.execute(id)
             } catch (e: Exception) {
                 _deleteError.emit(e.message ?: "Failed to delete")
+            }
+        }
+    }
+
+    /**
+     * Adds the given list of media [uris] to the library sequentially.
+     *
+     * Sets [isAdding] to true for the duration of the operation. If any item
+     * fails (either metadata extraction or file copy), [addMediaError] emits
+     * a summary message of the form "Added N, failed M" once all items have
+     * been processed. No event is emitted when every item succeeds; the
+     * updated library is itself the success signal.
+     *
+     * No-op if [uris] is empty.
+     */
+    fun addMedia(uris: List<String>) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            _isAdding.value = true
+            var success = 0
+            var failure = 0
+            for (uri in uris) {
+                try {
+                    val metadata = metadataExtractor.extract(uri)
+                    addMediaUseCase.execute(
+                        AddMediaRequest(
+                            sourceUri = uri,
+                            fileName = metadata.fileName,
+                            mediaType = metadata.mediaType,
+                            displayName = metadata.fileName,
+                            durationMs = metadata.durationMs,
+                            widthPx = metadata.widthPx,
+                            heightPx = metadata.heightPx,
+                            fileSizeBytes = metadata.fileSizeBytes,
+                            takenAt = metadata.takenAt,
+                        )
+                    )
+                    success++
+                } catch (_: Exception) {
+                    failure++
+                }
+            }
+            _isAdding.value = false
+            if (failure > 0) {
+                _addMediaError.emit("Added $success, failed $failure")
             }
         }
     }

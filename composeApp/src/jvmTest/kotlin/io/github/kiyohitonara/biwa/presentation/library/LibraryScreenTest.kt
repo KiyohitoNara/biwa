@@ -7,8 +7,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
+import io.github.kiyohitonara.biwa.domain.model.MediaFileMetadata
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
+import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
+import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
@@ -88,6 +92,12 @@ class LibraryScreenTest {
             override suspend fun copyToInternalStorage(sourceUri: String, fileName: String) = ""
             override suspend fun deleteFromInternalStorage(filePath: String) {}
         }
+        val fakeMetadataExtractor = object : MediaMetadataExtractor {
+            override suspend fun extract(sourceUri: String) = MediaFileMetadata(
+                fileName = sourceUri.substringAfterLast("/"),
+                mediaType = MediaType.PHOTO,
+            )
+        }
         return LibraryViewModel(
             getAllMediaUseCase = GetAllMediaUseCase(fakeMediaRepository),
             deleteMediaUseCase = DeleteMediaUseCase(fakeMediaRepository, fakeFileStorage),
@@ -100,6 +110,8 @@ class LibraryScreenTest {
             getUserPreferencesUseCase = GetUserPreferencesUseCase(fakePreferencesRepository),
             getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
             reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
+            addMediaUseCase = AddMediaUseCase(fakeMediaRepository, fakeFileStorage, clock = { 0L }),
+            metadataExtractor = fakeMetadataExtractor,
         )
     }
 }
