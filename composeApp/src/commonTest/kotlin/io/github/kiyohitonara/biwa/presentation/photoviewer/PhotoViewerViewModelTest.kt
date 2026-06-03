@@ -2,12 +2,16 @@ package io.github.kiyohitonara.biwa.presentation.photoviewer
 
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
+import io.github.kiyohitonara.biwa.domain.storage.FileStorage
+import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllPhotosUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import io.github.kiyohitonara.biwa.presentation.library.FakeMediaRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -17,6 +21,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PhotoViewerViewModelTest {
@@ -27,7 +32,14 @@ class PhotoViewerViewModelTest {
         mediaId = mediaId,
         getAllPhotosUseCase = GetAllPhotosUseCase(fakeRepository),
         updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
+        deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage()),
     )
+
+    private fun fakeFileStorage() = object : FileStorage {
+        override suspend fun copyToInternalStorage(sourceUri: String, fileName: String) =
+            "/internal/media/$fileName"
+        override suspend fun deleteFromInternalStorage(filePath: String) {}
+    }
 
     @BeforeTest
     fun setup() {
@@ -175,6 +187,34 @@ class PhotoViewerViewModelTest {
 
         val state = assertIs<PhotoViewerUiState.Ready>(viewModel.uiState.value)
         assertEquals(true, state.isToolbarVisible)
+    }
+
+    // ── deleteCurrentPhoto ────────────────────────────────────────────────────
+
+    @Test
+    fun `deleteCurrentPhoto removes the photo at currentIndex from the repository`() = runTest {
+        fakeRepository.addMedia(photoItem("p1"))
+        fakeRepository.addMedia(photoItem("p2"))
+        val viewModel = buildViewModel("p1")
+
+        viewModel.deleteCurrentPhoto()
+
+        val state = assertIs<PhotoViewerUiState.Ready>(viewModel.uiState.value)
+        assertEquals(1, state.photos.size)
+        assertEquals("p2", state.photos.first().id)
+    }
+
+    @Test
+    fun `deleteCurrentPhoto emits navigateBack when last photo is deleted`() = runTest(testDispatcher) {
+        fakeRepository.addMedia(photoItem("p1"))
+        val viewModel = buildViewModel("p1")
+        var backFired = false
+        val job: Job = launch { viewModel.navigateBack.collect { backFired = true } }
+
+        viewModel.deleteCurrentPhoto()
+        job.cancel()
+
+        assertTrue(backFired)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

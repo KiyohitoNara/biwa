@@ -2,10 +2,14 @@ package io.github.kiyohitonara.biwa.presentation.photoviewer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllPhotosUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -22,11 +26,17 @@ class PhotoViewerViewModel(
     private val mediaId: String,
     private val getAllPhotosUseCase: GetAllPhotosUseCase,
     private val updateLastViewedAtUseCase: UpdateLastViewedAtUseCase,
+    private val deleteMediaUseCase: DeleteMediaUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<PhotoViewerUiState>(PhotoViewerUiState.Loading)
 
     /** Current state of the photo viewer screen. */
     val uiState: StateFlow<PhotoViewerUiState> = _uiState.asStateFlow()
+
+    private val _navigateBack = MutableSharedFlow<Unit>()
+
+    /** Emits when the screen should pop back to the library (e.g. after the last photo is deleted). */
+    val navigateBack: SharedFlow<Unit> = _navigateBack.asSharedFlow()
 
     init {
         viewModelScope.launch { collectPhotos() }
@@ -35,6 +45,11 @@ class PhotoViewerViewModel(
     private suspend fun collectPhotos() {
         getAllPhotosUseCase.execute().collect { photos ->
             val currentState = _uiState.value
+
+            if (photos.isEmpty()) {
+                _navigateBack.emit(Unit)
+                return@collect
+            }
 
             if (currentState is PhotoViewerUiState.Loading) {
                 // First emission: resolve the initial index
@@ -50,7 +65,7 @@ class PhotoViewerViewModel(
                 }
             } else if (currentState is PhotoViewerUiState.Ready) {
                 // Subsequent emissions: update photo list, keep current index clamped
-                val clampedIndex = currentState.currentIndex.coerceAtMost((photos.size - 1).coerceAtLeast(0))
+                val clampedIndex = currentState.currentIndex.coerceAtMost(photos.size - 1)
                 _uiState.value = currentState.copy(photos = photos, currentIndex = clampedIndex)
             }
         }
@@ -71,5 +86,18 @@ class PhotoViewerViewModel(
     fun toggleToolbar() {
         val state = _uiState.value as? PhotoViewerUiState.Ready ?: return
         _uiState.value = state.copy(isToolbarVisible = !state.isToolbarVisible)
+    }
+
+    /**
+     * Deletes the currently visible photo along with its file.
+     *
+     * The library flow re-emits without the deleted item, which causes the
+     * pager to advance to the next photo. If the deleted photo was the last
+     * remaining one, [navigateBack] is emitted instead.
+     */
+    fun deleteCurrentPhoto() {
+        val state = _uiState.value as? PhotoViewerUiState.Ready ?: return
+        val photo = state.photos.getOrNull(state.currentIndex) ?: return
+        viewModelScope.launch { deleteMediaUseCase.execute(photo.id) }
     }
 }

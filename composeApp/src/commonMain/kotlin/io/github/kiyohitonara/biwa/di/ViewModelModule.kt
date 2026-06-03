@@ -12,7 +12,7 @@ import org.koin.dsl.module
 val viewModelModule = module {
     viewModel { LibraryViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { params -> VideoPlayerViewModel(params.get(), get(), get(), get(), get(), get()) }
-    viewModel { params -> PhotoViewerViewModel(params.get(), get(), get()) }
+    viewModel { params -> PhotoViewerViewModel(params.get(), get(), get(), get()) }
     viewModel { params -> TagManagementViewModel(params.get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
 }
