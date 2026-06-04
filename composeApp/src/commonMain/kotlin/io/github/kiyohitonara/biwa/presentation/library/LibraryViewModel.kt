@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
 import io.github.kiyohitonara.biwa.domain.model.AddMediaRequest
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
-import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.model.SortOrder
 import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
@@ -260,20 +259,14 @@ class LibraryViewModel(
     }
 
     /**
-     * Records the view and emits a navigation effect to open the media item.
-     *
-     * VIDEO and GIF items navigate to the video player; PHOTO items navigate
-     * to the photo viewer. Does nothing if [id] is not found in the library.
+     * Records the view and emits a navigation effect to open the unified media viewer
+     * positioned at [id]. Does nothing if [id] is not found in the library.
      */
     fun openMedia(id: String) {
         viewModelScope.launch {
             updateLastViewedAtUseCase.execute(id)
-            val item = getMediaByIdUseCase.execute(id) ?: return@launch
-            val effect = when (item.mediaType) {
-                MediaType.VIDEO, MediaType.GIF -> LibraryNavEffect.OpenVideoPlayer(id)
-                MediaType.PHOTO -> LibraryNavEffect.OpenPhotoViewer(id)
-            }
-            _navEffect.emit(effect)
+            getMediaByIdUseCase.execute(id) ?: return@launch
+            _navEffect.emit(LibraryNavEffect.OpenMediaViewer(id))
         }
     }
 

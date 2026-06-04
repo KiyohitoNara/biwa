@@ -1,4 +1,4 @@
-package io.github.kiyohitonara.biwa.presentation.videoplayer
+package io.github.kiyohitonara.biwa.presentation.mediaviewer
 
 import io.github.kiyohitonara.biwa.domain.model.PlaybackState
 import io.github.kiyohitonara.biwa.domain.repository.PlaybackStateRepository

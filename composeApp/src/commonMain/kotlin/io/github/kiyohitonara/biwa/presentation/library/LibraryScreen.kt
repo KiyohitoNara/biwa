@@ -84,8 +84,7 @@ import org.koin.core.parameter.parametersOf
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
-    onOpenVideoPlayer: (String) -> Unit,
-    onOpenPhotoViewer: (String) -> Unit,
+    onOpenMediaViewer: (String) -> Unit,
     onManageTags: () -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: LibraryViewModel = koinViewModel(),
@@ -113,8 +112,7 @@ fun LibraryScreen(
     LaunchedEffect(viewModel.navEffect) {
         viewModel.navEffect.collect { effect ->
             when (effect) {
-                is LibraryNavEffect.OpenVideoPlayer -> onOpenVideoPlayer(effect.id)
-                is LibraryNavEffect.OpenPhotoViewer -> onOpenPhotoViewer(effect.id)
+                is LibraryNavEffect.OpenMediaViewer -> onOpenMediaViewer(effect.id)
             }
         }
     }

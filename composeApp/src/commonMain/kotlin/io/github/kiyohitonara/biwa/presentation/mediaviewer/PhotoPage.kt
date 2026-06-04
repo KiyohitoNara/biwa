@@ -57,9 +57,12 @@ fun PhotoPage(
                     },
                 )
             }
-            .transformable(
-                state = transformableState,
-                lockRotationOnZoomPan = true,
+            .then(
+                if (scale > 1f) {
+                    Modifier.transformable(state = transformableState, lockRotationOnZoomPan = true)
+                } else {
+                    Modifier
+                },
             ),
         contentAlignment = Alignment.Center,
     ) {

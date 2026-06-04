@@ -13,16 +13,14 @@ import androidx.navigation.compose.rememberNavController
 import io.github.kiyohitonara.biwa.domain.model.AppTheme
 import io.github.kiyohitonara.biwa.presentation.about.AboutScreen
 import io.github.kiyohitonara.biwa.presentation.library.LibraryScreen
-import io.github.kiyohitonara.biwa.presentation.photoviewer.PhotoViewerScreen
+import io.github.kiyohitonara.biwa.presentation.mediaviewer.MediaViewerScreen
 import io.github.kiyohitonara.biwa.presentation.settings.SettingsScreen
 import io.github.kiyohitonara.biwa.presentation.settings.SettingsViewModel
 import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementScreen
-import io.github.kiyohitonara.biwa.presentation.videoplayer.VideoPlayerScreen
 import org.koin.compose.viewmodel.koinViewModel
 
 private const val ROUTE_LIBRARY = "library"
-private const val ROUTE_VIDEO_PLAYER = "video_player/{id}"
-private const val ROUTE_PHOTO_VIEWER = "photo_viewer/{id}"
+private const val ROUTE_MEDIA_VIEWER = "media_viewer/{id}"
 private const val ROUTE_TAG_MANAGEMENT = "tag_management"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_ABOUT = "about"
@@ -44,20 +42,13 @@ actual fun App() {
         NavHost(navController = navController, startDestination = ROUTE_LIBRARY) {
             composable(ROUTE_LIBRARY) {
                 LibraryScreen(
-                    onOpenVideoPlayer = { id -> navController.navigate("video_player/$id") },
-                    onOpenPhotoViewer = { id -> navController.navigate("photo_viewer/$id") },
+                    onOpenMediaViewer = { id -> navController.navigate("media_viewer/$id") },
                     onManageTags = { navController.navigate(ROUTE_TAG_MANAGEMENT) },
                     onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
                 )
             }
-            composable(ROUTE_VIDEO_PLAYER) { backStackEntry ->
-                VideoPlayerScreen(
-                    mediaId = backStackEntry.arguments?.getString("id").orEmpty(),
-                    onBack = { navController.popBackStack() },
-                )
-            }
-            composable(ROUTE_PHOTO_VIEWER) { backStackEntry ->
-                PhotoViewerScreen(
+            composable(ROUTE_MEDIA_VIEWER) { backStackEntry ->
+                MediaViewerScreen(
                     mediaId = backStackEntry.arguments?.getString("id").orEmpty(),
                     onBack = { navController.popBackStack() },
                 )

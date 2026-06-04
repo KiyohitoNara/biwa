@@ -12,17 +12,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.kiyohitonara.biwa.domain.model.AppTheme
 import io.github.kiyohitonara.biwa.presentation.about.AboutScreen
 import io.github.kiyohitonara.biwa.presentation.library.LibraryScreen
-import io.github.kiyohitonara.biwa.presentation.photoviewer.PhotoViewerScreen
+import io.github.kiyohitonara.biwa.presentation.mediaviewer.MediaViewerScreen
 import io.github.kiyohitonara.biwa.presentation.settings.SettingsScreen
 import io.github.kiyohitonara.biwa.presentation.settings.SettingsViewModel
 import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementScreen
-import io.github.kiyohitonara.biwa.presentation.videoplayer.VideoPlayerScreen
 import org.koin.compose.viewmodel.koinViewModel
 
 private sealed interface Screen {
     data object Library : Screen
-    data class VideoPlayer(val id: String) : Screen
-    data class PhotoViewer(val id: String) : Screen
+    data class MediaViewer(val id: String) : Screen
     data object TagManagement : Screen
     data object Settings : Screen
     data object About : Screen
@@ -47,13 +45,11 @@ actual fun App() {
 
         when (val screen = current) {
             is Screen.Library -> LibraryScreen(
-                onOpenVideoPlayer = { id -> backStack.add(Screen.VideoPlayer(id)) },
-                onOpenPhotoViewer = { id -> backStack.add(Screen.PhotoViewer(id)) },
+                onOpenMediaViewer = { id -> backStack.add(Screen.MediaViewer(id)) },
                 onManageTags = { backStack.add(Screen.TagManagement) },
                 onOpenSettings = { backStack.add(Screen.Settings) },
             )
-            is Screen.VideoPlayer -> VideoPlayerScreen(mediaId = screen.id, onBack = goBack)
-            is Screen.PhotoViewer -> PhotoViewerScreen(mediaId = screen.id, onBack = goBack)
+            is Screen.MediaViewer -> MediaViewerScreen(mediaId = screen.id, onBack = goBack)
             is Screen.TagManagement -> TagManagementScreen(onBack = goBack)
             is Screen.Settings -> SettingsScreen(
                 onBack = goBack,

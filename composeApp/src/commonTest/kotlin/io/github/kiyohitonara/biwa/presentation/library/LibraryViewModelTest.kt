@@ -186,7 +186,7 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun `openMedia emits OpenVideoPlayer for VIDEO item`() = runTest(testDispatcher) {
+    fun `openMedia emits OpenMediaViewer for VIDEO item`() = runTest(testDispatcher) {
         fakeItems.value = listOf(videoItem())
 
         var received: LibraryNavEffect? = null
@@ -195,11 +195,11 @@ class LibraryViewModelTest {
         viewModel.openMedia("id-1")
         job.cancel()
 
-        assertEquals(LibraryNavEffect.OpenVideoPlayer("id-1"), received)
+        assertEquals(LibraryNavEffect.OpenMediaViewer("id-1"), received)
     }
 
     @Test
-    fun `openMedia emits OpenVideoPlayer for GIF item`() = runTest(testDispatcher) {
+    fun `openMedia emits OpenMediaViewer for GIF item`() = runTest(testDispatcher) {
         fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.GIF))
 
         var received: LibraryNavEffect? = null
@@ -208,11 +208,11 @@ class LibraryViewModelTest {
         viewModel.openMedia("id-1")
         job.cancel()
 
-        assertEquals(LibraryNavEffect.OpenVideoPlayer("id-1"), received)
+        assertEquals(LibraryNavEffect.OpenMediaViewer("id-1"), received)
     }
 
     @Test
-    fun `openMedia emits OpenPhotoViewer for PHOTO item`() = runTest(testDispatcher) {
+    fun `openMedia emits OpenMediaViewer for PHOTO item`() = runTest(testDispatcher) {
         fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.PHOTO))
 
         var received: LibraryNavEffect? = null
@@ -221,7 +221,7 @@ class LibraryViewModelTest {
         viewModel.openMedia("id-1")
         job.cancel()
 
-        assertEquals(LibraryNavEffect.OpenPhotoViewer("id-1"), received)
+        assertEquals(LibraryNavEffect.OpenMediaViewer("id-1"), received)
     }
 
     @Test

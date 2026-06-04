@@ -12,7 +12,6 @@ import io.github.kiyohitonara.biwa.domain.usecase.SavePlaybackStateUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.SetAbPointUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import io.github.kiyohitonara.biwa.presentation.library.FakeMediaRepository
-import io.github.kiyohitonara.biwa.presentation.videoplayer.FakePlaybackStateRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
