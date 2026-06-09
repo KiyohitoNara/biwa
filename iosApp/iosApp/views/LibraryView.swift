@@ -155,16 +155,11 @@ struct LibraryView: View {
                     Image(systemName: "ellipsis.circle")
                 }
             }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            Button { showPicker = true } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 24, weight: .semibold))
-                    .frame(width: 56, height: 56)
-                    .background(Circle().fill(Color.accentColor))
-                    .foregroundStyle(.white)
+            ToolbarItem(placement: .bottomBar) {
+                Button { showPicker = true } label: {
+                    Image(systemName: "plus")
+                }
             }
-            .padding(16)
         }
         .sheet(isPresented: $showSortSheet) {
             SortSheet(current: bridge.sortOrder) { order in
