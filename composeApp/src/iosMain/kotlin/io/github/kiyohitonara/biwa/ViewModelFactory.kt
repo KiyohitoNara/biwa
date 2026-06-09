@@ -1,5 +1,6 @@
 package io.github.kiyohitonara.biwa
 
+import io.github.kiyohitonara.biwa.presentation.library.LibraryViewModel
 import io.github.kiyohitonara.biwa.presentation.mediaviewer.MediaViewerViewModel
 import io.github.kiyohitonara.biwa.presentation.settings.SettingsViewModel
 import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementViewModel
@@ -9,6 +10,9 @@ import org.koin.core.parameter.parametersOf
 
 /** Provides Koin-managed ViewModels to Swift iOS code. */
 object ViewModelFactory : KoinComponent {
+    /** Returns a new [LibraryViewModel] instance from the Koin container. */
+    fun makeLibraryViewModel(): LibraryViewModel = get()
+
     /** Returns a new [SettingsViewModel] instance from the Koin container. */
     fun makeSettingsViewModel(): SettingsViewModel = get()
 
