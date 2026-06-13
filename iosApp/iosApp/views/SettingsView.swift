@@ -21,7 +21,6 @@ private final class SettingsViewModelBridge: ObservableObject {
     deinit { streamTask?.cancel() }
 
     func setTheme(_ theme: SharedAppTheme) { vm.setTheme(theme: theme) }
-    func setDefaultSortOrder(_ order: SharedSortOrder) { vm.setDefaultSortOrder(sortOrder: order) }
 }
 
 struct SettingsView: View {
@@ -32,17 +31,6 @@ struct SettingsView: View {
 
     var body: some View {
         List {
-            Section("Library") {
-                Picker("Default Sort Order", selection: Binding(
-                    get: { bridge.uiState.defaultSortOrder },
-                    set: { bridge.setDefaultSortOrder($0) }
-                )) {
-                    ForEach(SharedSortOrder.allCases, id: \.self) { order in
-                        Text(sortLabel(order)).tag(order)
-                    }
-                }
-            }
-
             Section("Appearance") {
                 Picker("Theme", selection: Binding(
                     get: { bridge.uiState.theme },
@@ -67,18 +55,6 @@ struct SettingsView: View {
                     Image(systemName: "chevron.left")
                 }
             }
-        }
-    }
-
-    private func sortLabel(_ order: SharedSortOrder) -> String {
-        switch order {
-        case .addedAtDesc: return "Added (newest first)"
-        case .addedAtAsc: return "Added (oldest first)"
-        case .fileName: return "File name"
-        case .lastViewedAt: return "Last viewed"
-        case .fileSize: return "File size"
-        case .manual: return "Manual"
-        default: return order.name
         }
     }
 

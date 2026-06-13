@@ -43,7 +43,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -128,7 +127,9 @@ fun LibraryScreen(
                             contentDescription = "Manage tags",
                         )
                     }
-                    IconButton(onClick = { showSortSheet = true }) {
+                    val successState = uiState as? LibraryUiState.Success
+                    val sortEnabled = (successState?.activeTagIds?.size ?: 0) <= 1
+                    IconButton(onClick = { showSortSheet = true }, enabled = sortEnabled) {
                         Icon(
                             imageVector = Icons.Filled.SwapVert,
                             contentDescription = "Sort",
@@ -183,11 +184,10 @@ fun LibraryScreen(
                         if (state.items.isEmpty()) {
                             EmptyLibrary(modifier = Modifier.align(Alignment.Center))
                         } else {
-                            val filtersActive = state.activeTagIds.size > 1
+                            val multiTagActive = state.activeTagIds.size > 1
                             MediaGrid(
                                 items = state.items,
-                                sortOrder = state.sortOrder,
-                                filtersActive = filtersActive,
+                                draggable = !multiTagActive,
                                 onTap = { viewModel.openMedia(it.id) },
                                 onLongPress = { contextItem = it },
                                 onReorder = viewModel::reorderMedia,
@@ -210,7 +210,6 @@ fun LibraryScreen(
 
     if (showSortSheet) {
         SortSelectionSheet(
-            currentSort = (uiState as? LibraryUiState.Success)?.sortOrder ?: SortOrder.ADDED_AT_DESC,
             onSortSelected = { viewModel.setSortOrder(it); showSortSheet = false },
             onDismiss = { showSortSheet = false },
         )
@@ -256,7 +255,6 @@ private fun TagFilterChipsRow(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SortSelectionSheet(
-    currentSort: SortOrder,
     onSortSelected: (SortOrder) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -268,20 +266,14 @@ private fun SortSelectionSheet(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
         SortOrder.entries.forEach { order ->
-            Row(
+            Text(
+                text = sortLabel(order),
+                style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onSortSelected(order) }
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                RadioButton(
-                    selected = order == currentSort,
-                    onClick = { onSortSelected(order) },
-                )
-                Text(sortLabel(order), style = MaterialTheme.typography.bodyLarge)
-            }
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
+            )
         }
         Spacer(modifier = Modifier.height(32.dp))
     }
@@ -381,14 +373,18 @@ private fun EmptyLibrary(modifier: Modifier = Modifier) {
 @Composable
 private fun MediaGrid(
     items: List<MediaItem>,
-    sortOrder: SortOrder,
-    filtersActive: Boolean,
+    draggable: Boolean,
     onTap: (MediaItem) -> Unit,
     onLongPress: (MediaItem) -> Unit,
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
 ) {
-    if (sortOrder == SortOrder.MANUAL && !filtersActive) {
-        DraggableMediaGrid(items = items, onTap = onTap, onReorder = onReorder)
+    if (draggable) {
+        DraggableMediaGrid(
+            items = items,
+            onTap = onTap,
+            onLongPress = onLongPress,
+            onReorder = onReorder,
+        )
     } else {
         StaticMediaGrid(items = items, onTap = onTap, onLongPress = onLongPress)
     }
@@ -427,6 +423,7 @@ private fun StaticMediaGrid(
 private fun DraggableMediaGrid(
     items: List<MediaItem>,
     onTap: (MediaItem) -> Unit,
+    onLongPress: (MediaItem) -> Unit,
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
 ) {
     // Mutable map — not snapshot state to avoid recomposition during onGloballyPositioned
@@ -466,6 +463,7 @@ private fun DraggableMediaGrid(
                             }
                         }
                         .pointerInput(item.id) {
+                            val slop = viewConfiguration.touchSlop
                             detectDragGesturesAfterLongPress(
                                 onDragStart = { _ ->
                                     draggedKey = item.id
@@ -485,9 +483,13 @@ private fun DraggableMediaGrid(
                                         }?.key
                                 },
                                 onDragEnd = {
-                                    val fromIdx = items.indexOfFirst { it.id == draggedKey }
+                                    val draggedItemId = draggedKey
+                                    val fromIdx = items.indexOfFirst { it.id == draggedItemId }
                                     val toIdx = items.indexOfFirst { it.id == dropTargetKey }
-                                    if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
+                                    val moved = dragOffset.getDistance() > slop
+                                    if (!moved && draggedItemId != null) {
+                                        items.firstOrNull { it.id == draggedItemId }?.let(onLongPress)
+                                    } else if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
                                         onReorder(fromIdx, toIdx)
                                     }
                                     draggedKey = null
@@ -580,7 +582,6 @@ private fun sortLabel(order: SortOrder) = when (order) {
     SortOrder.FILE_NAME -> "File name"
     SortOrder.LAST_VIEWED_AT -> "Last viewed"
     SortOrder.FILE_SIZE -> "File size"
-    SortOrder.MANUAL -> "Manual"
 }
 
 private fun formatDuration(ms: Long): String {

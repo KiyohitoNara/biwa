@@ -14,7 +14,6 @@ import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForTagUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetUserPreferencesUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderTagMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
@@ -25,9 +24,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -36,9 +33,12 @@ import kotlinx.coroutines.launch
 /**
  * Manages UI state for the media library screen.
  *
- * Reactively applies [SortOrder] and active tag IDs (AND logic)
- * to produce [uiState]. Thumbnail generation for VIDEO items without a cached
- * path is triggered automatically on each library update.
+ * Items are always displayed in their persisted manual order
+ * ([MediaItem.sortOrder] globally, or the tag-specific order when a single tag
+ * is active). Selecting a [SortOrder] is a one-shot reorder action that
+ * computes a new order and persists it via the reorder use cases. Thumbnail
+ * generation for items without a cached path is triggered automatically on
+ * each library update.
  */
 class LibraryViewModel(
     private val getAllMediaUseCase: GetAllMediaUseCase,
@@ -49,7 +49,6 @@ class LibraryViewModel(
     private val reorderMediaUseCase: ReorderMediaUseCase,
     private val getAllTagsUseCase: GetAllTagsUseCase,
     private val getMediaIdsWithAllTagsUseCase: GetMediaIdsWithAllTagsUseCase,
-    private val getUserPreferencesUseCase: GetUserPreferencesUseCase,
     private val getOrderedMediaIdsForTagUseCase: GetOrderedMediaIdsForTagUseCase,
     private val reorderTagMediaUseCase: ReorderTagMediaUseCase,
     private val addMediaUseCase: AddMediaUseCase,
@@ -59,18 +58,14 @@ class LibraryViewModel(
     // IDs for which thumbnail generation has already been scheduled this session.
     private val generatingIds = mutableSetOf<String>()
 
-    private val _sortOrder = MutableStateFlow(SortOrder.ADDED_AT_DESC)
-
-    /** Currently selected sort order. */
-    val sortOrder: StateFlow<SortOrder> = _sortOrder
-
     private val _activeTagIds = MutableStateFlow<Set<String>>(emptySet())
 
     /** IDs of tags currently selected as filters. */
     val activeTagIds: StateFlow<Set<String>> = _activeTagIds
 
     /**
-     * Current state of the library, reflecting the active [sortOrder] and [activeTagIds].
+     * Current state of the library, reflecting the active tag filter and the
+     * persisted manual ordering.
      *
      * Starts as [LibraryUiState.Loading] until the first DB emission arrives.
      * The upstream flow is kept active for 5 seconds after the last subscriber
@@ -80,6 +75,7 @@ class LibraryViewModel(
         .flatMapLatest { tagIds ->
             val mediaFlow = when {
                 tagIds.isEmpty() -> getAllMediaUseCase.execute()
+                    .map { items -> items.sortedBy { it.sortOrder } }
                 tagIds.size == 1 -> combine(
                     getAllMediaUseCase.execute(),
                     getOrderedMediaIdsForTagUseCase.execute(tagIds.first()),
@@ -90,24 +86,14 @@ class LibraryViewModel(
                 else -> combine(
                     getAllMediaUseCase.execute(),
                     getMediaIdsWithAllTagsUseCase.execute(tagIds.toList()),
-                ) { items, filteredIds -> items.filter { it.id in filteredIds } }
+                ) { items, filteredIds ->
+                    items.filter { it.id in filteredIds }.sortedBy { it.sortOrder }
+                }
             }
 
-            combine(
-                mediaFlow,
-                _sortOrder,
-                getAllTagsUseCase.execute(),
-            ) { items, sortOrder, allTags ->
-                // When a single tag is active and sort is MANUAL, the items are already
-                // ordered by the tag-specific sort_order — skip the global applySort.
-                val sortedItems = if (tagIds.size == 1 && sortOrder == SortOrder.MANUAL) {
-                    items
-                } else {
-                    items.applySort(sortOrder)
-                }
+            combine(mediaFlow, getAllTagsUseCase.execute()) { items, allTags ->
                 LibraryUiState.Success(
-                    items = sortedItems,
-                    sortOrder = sortOrder,
+                    items = items,
                     availableTags = allTags,
                     activeTagIds = tagIds,
                 )
@@ -145,10 +131,6 @@ class LibraryViewModel(
 
     init {
         viewModelScope.launch {
-            val prefs = getUserPreferencesUseCase.execute().first()
-            _sortOrder.value = prefs.defaultSortOrder
-        }
-        viewModelScope.launch {
             getAllMediaUseCase.execute().collect { items ->
                 items.filter { it.thumbnailPath == null }
                     .forEach { item ->
@@ -160,9 +142,26 @@ class LibraryViewModel(
         }
     }
 
-    /** Switches the active sort order to [sortOrder]. */
+    /**
+     * Reorders the currently displayed list by [sortOrder] and persists the new ordering.
+     *
+     * When exactly one tag is active, the order is saved as the tag-specific manual order
+     * via [ReorderTagMediaUseCase]; otherwise the global manual order is updated via
+     * [ReorderMediaUseCase]. No-op when [uiState] is not [LibraryUiState.Success] or when
+     * multiple tag filters are active (the operation has no defined target ordering).
+     */
     fun setSortOrder(sortOrder: SortOrder) {
-        _sortOrder.value = sortOrder
+        val state = uiState.value as? LibraryUiState.Success ?: return
+        if (state.activeTagIds.size > 1) return
+        val orderedIds = state.items.applySort(sortOrder).map { it.id }
+        val singleTagId = state.activeTagIds.singleOrNull()
+        viewModelScope.launch {
+            if (singleTagId != null) {
+                reorderTagMediaUseCase.execute(singleTagId, orderedIds)
+            } else {
+                reorderMediaUseCase.execute(orderedIds)
+            }
+        }
     }
 
     /**
@@ -182,8 +181,8 @@ class LibraryViewModel(
      * and persists the new ordering.
      *
      * When exactly one tag is active, the ordering is saved as a tag-specific sort order
-     * via [ReorderTagMediaUseCase]. Otherwise the global [SortOrder.MANUAL] ordering is
-     * updated via [ReorderMediaUseCase].
+     * via [ReorderTagMediaUseCase]. Otherwise the global manual ordering is updated via
+     * [ReorderMediaUseCase].
      *
      * No-op if [uiState] is not [LibraryUiState.Success].
      */
@@ -284,6 +283,5 @@ class LibraryViewModel(
         SortOrder.FILE_NAME -> sortedBy { it.displayName.lowercase() }
         SortOrder.LAST_VIEWED_AT -> sortedByDescending { it.lastViewedAt ?: Long.MIN_VALUE }
         SortOrder.FILE_SIZE -> sortedByDescending { it.fileSizeBytes }
-        SortOrder.MANUAL -> sortedBy { it.sortOrder }
     }
 }

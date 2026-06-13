@@ -6,7 +6,7 @@ import io.github.kiyohitonara.biwa.domain.repository.MediaRepository
  * Persists a user-defined manual ordering for the media library.
  *
  * Each item's [MediaItem.sortOrder] is set to its index in [orderedIds],
- * so smaller values appear first in [SortOrder.MANUAL] mode.
+ * so smaller values appear first when the library is rendered.
  *
  * @param repository Persistence layer for updating sort order values.
  */

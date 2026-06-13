@@ -1,8 +1,14 @@
 package io.github.kiyohitonara.biwa.domain.model
 
-/** Ordering options for the media library. */
+/**
+ * Reorder actions the user can apply to the persisted manual order.
+ *
+ * The library always displays items in [MediaItem.sortOrder] sequence; selecting
+ * one of these actions computes a new ordering by the chosen field and persists
+ * it via the reorder use cases.
+ */
 enum class SortOrder {
-    /** Added date, newest first (default). */
+    /** Added date, newest first. */
     ADDED_AT_DESC,
 
     /** Added date, oldest first. */
@@ -16,7 +22,4 @@ enum class SortOrder {
 
     /** File size, largest first. */
     FILE_SIZE,
-
-    /** User-defined manual order stored in [MediaItem.sortOrder]. */
-    MANUAL,
 }

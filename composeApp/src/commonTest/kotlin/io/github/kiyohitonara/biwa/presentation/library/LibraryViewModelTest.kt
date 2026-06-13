@@ -15,7 +15,6 @@ import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForTagUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetUserPreferencesUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderTagMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
@@ -46,7 +45,6 @@ class LibraryViewModelTest {
     private val fakeRepository = FakeMediaRepository(fakeItems)
     private val fakeThumbnailRepository = FakeThumbnailRepository()
     private val fakeTagRepository = FakeTagRepository()
-    private val fakePreferencesRepository = FakeUserPreferencesRepository()
     private lateinit var viewModel: LibraryViewModel
     private lateinit var collectionJob: Job
 
@@ -56,7 +54,6 @@ class LibraryViewModelTest {
         repository: FakeMediaRepository = fakeRepository,
         thumbnailRepository: FakeThumbnailRepository = fakeThumbnailRepository,
         tagRepository: FakeTagRepository = fakeTagRepository,
-        preferencesRepository: FakeUserPreferencesRepository = fakePreferencesRepository,
         displayState: LibraryDisplayState = libraryDisplayState,
     ) = LibraryViewModel(
         getAllMediaUseCase = GetAllMediaUseCase(repository),
@@ -67,7 +64,6 @@ class LibraryViewModelTest {
         reorderMediaUseCase = ReorderMediaUseCase(repository),
         getAllTagsUseCase = GetAllTagsUseCase(tagRepository),
         getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(tagRepository),
-        getUserPreferencesUseCase = GetUserPreferencesUseCase(preferencesRepository),
         getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(tagRepository),
         reorderTagMediaUseCase = ReorderTagMediaUseCase(tagRepository),
         addMediaUseCase = AddMediaUseCase(repository, fakeFileStorage(), clock = { 0L }),
@@ -120,10 +116,21 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun `uiState items are ordered by sortOrder ascending`() = runTest {
+        fakeItems.value = listOf(
+            videoItem().copy(id = "second", sortOrder = 1L, filePath = "/media/b.mp4"),
+            videoItem().copy(id = "first", sortOrder = 0L, filePath = "/media/a.mp4"),
+        )
+
+        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertEquals(listOf("first", "second"), state.items.map { it.id })
+    }
+
+    @Test
     fun `displayState mirrors emitted items in order`() = runTest {
         fakeItems.value = listOf(
-            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
-            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+            videoItem().copy(id = "a", sortOrder = 0L, filePath = "/media/a.mp4"),
+            videoItem().copy(id = "b", sortOrder = 1L, filePath = "/media/b.mp4"),
         )
 
         // Ensure uiState has emitted before reading the display state.
@@ -170,7 +177,6 @@ class LibraryViewModelTest {
             reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
             getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
             getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
-            getUserPreferencesUseCase = GetUserPreferencesUseCase(fakePreferencesRepository),
             getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
             reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
             addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
@@ -261,79 +267,113 @@ class LibraryViewModelTest {
         assertTrue(fakeRepository.lastViewedAtUpdates.any { it.first == "id-1" })
     }
 
-    // ── Sort order ───────────────────────────────────────────────────────────
+    // ── Apply-once sort actions ──────────────────────────────────────────────
 
     @Test
-    fun `setSortOrder ADDED_AT_DESC sorts newest first`() = runTest {
+    fun `setSortOrder ADDED_AT_DESC persists new order with newest first`() = runTest {
         fakeItems.value = listOf(
-            videoItem().copy(id = "old", addedAt = 1_000L),
-            videoItem().copy(id = "new", addedAt = 2_000L),
+            videoItem().copy(id = "old", addedAt = 1_000L, sortOrder = 0L),
+            videoItem().copy(id = "new", addedAt = 2_000L, sortOrder = 1L),
         )
 
         viewModel.setSortOrder(SortOrder.ADDED_AT_DESC)
 
         val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals("new", state.items.first().id)
+        assertEquals(listOf("new", "old"), state.items.map { it.id })
     }
 
     @Test
-    fun `setSortOrder ADDED_AT_ASC sorts oldest first`() = runTest {
+    fun `setSortOrder ADDED_AT_ASC persists new order with oldest first`() = runTest {
         fakeItems.value = listOf(
-            videoItem().copy(id = "old", addedAt = 1_000L),
-            videoItem().copy(id = "new", addedAt = 2_000L),
+            videoItem().copy(id = "new", addedAt = 2_000L, sortOrder = 0L),
+            videoItem().copy(id = "old", addedAt = 1_000L, sortOrder = 1L),
         )
 
         viewModel.setSortOrder(SortOrder.ADDED_AT_ASC)
 
         val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals("old", state.items.first().id)
+        assertEquals(listOf("old", "new"), state.items.map { it.id })
     }
 
     @Test
-    fun `setSortOrder FILE_NAME sorts alphabetically`() = runTest {
+    fun `setSortOrder FILE_NAME persists alphabetical order`() = runTest {
         fakeItems.value = listOf(
-            videoItem().copy(id = "b", displayName = "banana.mp4"),
-            videoItem().copy(id = "a", displayName = "apple.mp4"),
+            videoItem().copy(id = "b", displayName = "banana.mp4", sortOrder = 0L),
+            videoItem().copy(id = "a", displayName = "apple.mp4", sortOrder = 1L),
         )
 
         viewModel.setSortOrder(SortOrder.FILE_NAME)
 
         val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals("a", state.items.first().id)
+        assertEquals(listOf("a", "b"), state.items.map { it.id })
     }
 
     @Test
-    fun `setSortOrder FILE_SIZE sorts largest first`() = runTest {
+    fun `setSortOrder FILE_SIZE persists order with largest first`() = runTest {
         fakeItems.value = listOf(
-            videoItem().copy(id = "small", fileSizeBytes = 1_000L),
-            videoItem().copy(id = "large", fileSizeBytes = 9_000L),
+            videoItem().copy(id = "small", fileSizeBytes = 1_000L, sortOrder = 0L),
+            videoItem().copy(id = "large", fileSizeBytes = 9_000L, sortOrder = 1L),
         )
 
         viewModel.setSortOrder(SortOrder.FILE_SIZE)
 
         val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals("large", state.items.first().id)
+        assertEquals(listOf("large", "small"), state.items.map { it.id })
     }
 
     @Test
-    fun `setSortOrder MANUAL sorts by sortOrder ascending`() = runTest {
+    fun `setSortOrder writes ordered indices via the reorder use case`() = runTest {
         fakeItems.value = listOf(
-            videoItem().copy(id = "second", sortOrder = 1L),
-            videoItem().copy(id = "first", sortOrder = 0L),
+            videoItem().copy(id = "b", displayName = "b.mp4", sortOrder = 0L),
+            videoItem().copy(id = "a", displayName = "a.mp4", sortOrder = 1L),
         )
 
-        viewModel.setSortOrder(SortOrder.MANUAL)
+        viewModel.setSortOrder(SortOrder.FILE_NAME)
 
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals("first", state.items.first().id)
+        val finalOrders = fakeRepository.sortOrderUpdates
+            .groupBy({ it.first }, { it.second })
+            .mapValues { it.value.last() }
+        assertEquals(0L, finalOrders["a"])
+        assertEquals(1L, finalOrders["b"])
     }
 
     @Test
-    fun `setSortOrder updates sortOrder in uiState`() = runTest {
+    fun `setSortOrder is a no-op when multiple tag filters are active`() = runTest {
+        fakeTagRepository.tags.value = listOf(
+            Tag("t1", "Nature", 0L),
+            Tag("t2", "Travel", 0L),
+        )
+        fakeItems.value = listOf(
+            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+        )
+        fakeTagRepository.addTagToMedia("a", "t1")
+        fakeTagRepository.addTagToMedia("a", "t2")
+        viewModel.toggleTag("t1")
+        viewModel.toggleTag("t2")
+
+        viewModel.setSortOrder(SortOrder.FILE_NAME)
+
+        assertTrue(fakeRepository.sortOrderUpdates.isEmpty())
+    }
+
+    @Test
+    fun `setSortOrder with single active tag persists tag-specific order`() = runTest {
+        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+        fakeItems.value = listOf(
+            videoItem().copy(id = "b", displayName = "b.mp4", filePath = "/media/b.mp4"),
+            videoItem().copy(id = "a", displayName = "a.mp4", filePath = "/media/a.mp4"),
+        )
+        fakeTagRepository.addTagToMedia("a", "t1")
+        fakeTagRepository.addTagToMedia("b", "t1")
+        viewModel.toggleTag("t1")
+
         viewModel.setSortOrder(SortOrder.FILE_NAME)
 
         val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(SortOrder.FILE_NAME, state.sortOrder)
+        assertEquals(listOf("a", "b"), state.items.map { it.id })
+        // Global sort order should not be touched when reordering a tagged subset.
+        assertTrue(fakeRepository.sortOrderUpdates.isEmpty())
     }
 
     // ── Manual reorder ────────────────────────────────────────────────────────
@@ -345,7 +385,6 @@ class LibraryViewModelTest {
             videoItem().copy(id = "b", sortOrder = 1L),
             videoItem().copy(id = "c", sortOrder = 2L),
         )
-        viewModel.setSortOrder(SortOrder.MANUAL)
 
         viewModel.reorderMedia(fromIndex = 0, toIndex = 2)
 
@@ -369,7 +408,6 @@ class LibraryViewModelTest {
         fakeTagRepository.addTagToMedia("a", "t1")
         fakeTagRepository.addTagToMedia("b", "t1")
         fakeTagRepository.addTagToMedia("c", "t1")
-        viewModel.setSortOrder(SortOrder.MANUAL)
         viewModel.toggleTag("t1")
 
         // Move "a" (index 0) to index 2 → expected order: b, c, a
@@ -388,7 +426,6 @@ class LibraryViewModelTest {
         )
         fakeTagRepository.addTagToMedia("a", "t1")
         fakeTagRepository.addTagToMedia("b", "t1")
-        viewModel.setSortOrder(SortOrder.MANUAL)
         viewModel.toggleTag("t1")
 
         viewModel.reorderMedia(fromIndex = 0, toIndex = 1)
@@ -399,7 +436,7 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun `single tag MANUAL order is preserved when toggling off and on again`() = runTest {
+    fun `single tag manual order is preserved when toggling off and on again`() = runTest {
         fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
         fakeItems.value = listOf(
             videoItem().copy(id = "a", filePath = "/media/a.mp4"),
@@ -407,7 +444,6 @@ class LibraryViewModelTest {
         )
         fakeTagRepository.addTagToMedia("a", "t1")
         fakeTagRepository.addTagToMedia("b", "t1")
-        viewModel.setSortOrder(SortOrder.MANUAL)
         viewModel.toggleTag("t1")
         viewModel.reorderMedia(fromIndex = 0, toIndex = 1) // b, a
 
@@ -460,23 +496,6 @@ class LibraryViewModelTest {
         fakeItems.value = listOf(videoItem())
 
         assertEquals(1, thumbnailRepository.generatedPaths.size)
-    }
-
-    // ── Default sort order from preferences ───────────────────────────────────
-
-    @Test
-    fun `uiState applies persisted default sort order on init`() = runTest {
-        val vm = buildViewModel(
-            preferencesRepository = FakeUserPreferencesRepository(
-                initial = io.github.kiyohitonara.biwa.domain.model.UserPreferences(
-                    defaultSortOrder = SortOrder.FILE_NAME,
-                ),
-            ),
-        )
-        CoroutineScope(testDispatcher).launch { vm.uiState.collect() }.cancel()
-
-        val state = assertIs<LibraryUiState.Success>(vm.uiState.value)
-        assertEquals(SortOrder.FILE_NAME, state.sortOrder)
     }
 
     // ── Tag filter ────────────────────────────────────────────────────────────
@@ -601,7 +620,6 @@ class LibraryViewModelTest {
             reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
             getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
             getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
-            getUserPreferencesUseCase = GetUserPreferencesUseCase(fakePreferencesRepository),
             getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
             reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
             addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),

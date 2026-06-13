@@ -24,5 +24,8 @@ class FakeMediaRepository(
 
     override suspend fun updateSortOrder(id: String, sortOrder: Long) {
         sortOrderUpdates.add(id to sortOrder)
+        items.value = items.value.map {
+            if (it.id == id) it.copy(sortOrder = sortOrder) else it
+        }
     }
 }
