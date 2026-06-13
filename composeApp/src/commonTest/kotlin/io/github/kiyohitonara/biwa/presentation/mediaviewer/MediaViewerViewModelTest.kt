@@ -12,6 +12,7 @@ import io.github.kiyohitonara.biwa.domain.usecase.SavePlaybackStateUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.SetAbPointUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import io.github.kiyohitonara.biwa.presentation.library.FakeMediaRepository
+import io.github.kiyohitonara.biwa.presentation.library.LibraryDisplayState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,7 +35,12 @@ class MediaViewerViewModelTest {
     private val fakeMediaRepository = FakeMediaRepository(MutableStateFlow(emptyList()))
     private val fakePlaybackRepository = FakePlaybackStateRepository()
 
-    private fun buildViewModel(mediaId: String = "p1") = MediaViewerViewModel(
+    private val libraryDisplayState = LibraryDisplayState()
+
+    private fun buildViewModel(
+        mediaId: String = "p1",
+        displayState: LibraryDisplayState = libraryDisplayState,
+    ) = MediaViewerViewModel(
         mediaId = mediaId,
         getAllMediaUseCase = GetAllMediaUseCase(fakeMediaRepository),
         updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeMediaRepository, clock = { 0L }),
@@ -43,6 +49,7 @@ class MediaViewerViewModelTest {
         savePlaybackStateUseCase = SavePlaybackStateUseCase(fakePlaybackRepository, clock = { 0L }),
         setAbPointUseCase = SetAbPointUseCase(fakePlaybackRepository, clock = { 0L }),
         resetAbRepeatUseCase = ResetAbRepeatUseCase(fakePlaybackRepository, clock = { 0L }),
+        libraryDisplayState = displayState,
     )
 
     @BeforeTest
@@ -74,6 +81,33 @@ class MediaViewerViewModelTest {
 
         val state = assertIs<MediaViewerUiState.Ready>(viewModel.uiState.value)
         assertEquals(3, state.items.size)
+    }
+
+    @Test
+    fun `items follow LibraryDisplayState ordering when present`() = runTest {
+        fakeMediaRepository.addMedia(photoItem("p1"))
+        fakeMediaRepository.addMedia(photoItem("p2"))
+        fakeMediaRepository.addMedia(photoItem("p3"))
+        libraryDisplayState.update(listOf("p3", "p1", "p2"))
+
+        val viewModel = buildViewModel("p1")
+
+        val state = assertIs<MediaViewerUiState.Ready>(viewModel.uiState.value)
+        assertEquals(listOf("p3", "p1", "p2"), state.items.map { it.id })
+        assertEquals(1, state.currentIndex)
+    }
+
+    @Test
+    fun `items exclude entries missing from LibraryDisplayState`() = runTest {
+        fakeMediaRepository.addMedia(photoItem("p1"))
+        fakeMediaRepository.addMedia(photoItem("p2"))
+        fakeMediaRepository.addMedia(photoItem("p3"))
+        libraryDisplayState.update(listOf("p1", "p3"))
+
+        val viewModel = buildViewModel("p1")
+
+        val state = assertIs<MediaViewerUiState.Ready>(viewModel.uiState.value)
+        assertEquals(listOf("p1", "p3"), state.items.map { it.id })
     }
 
     @Test

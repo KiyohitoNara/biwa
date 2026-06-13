@@ -13,6 +13,7 @@ import io.github.kiyohitonara.biwa.domain.usecase.ResetAbRepeatUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.SavePlaybackStateUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.SetAbPointUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
+import io.github.kiyohitonara.biwa.presentation.library.LibraryDisplayState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -42,6 +43,7 @@ class MediaViewerViewModel(
     private val savePlaybackStateUseCase: SavePlaybackStateUseCase,
     private val setAbPointUseCase: SetAbPointUseCase,
     private val resetAbRepeatUseCase: ResetAbRepeatUseCase,
+    private val libraryDisplayState: LibraryDisplayState,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<MediaViewerUiState>(MediaViewerUiState.Loading)
 
@@ -61,12 +63,22 @@ class MediaViewerViewModel(
     /** IDs whose media has been deleted via this ViewModel, so we skip persisting their state. */
     private val deletedIds = mutableSetOf<String>()
 
+    // Snapshot of the library's ordering at the moment the viewer opens.
+    // Held for the viewer's lifetime so reordering the library does not jolt the active view.
+    // Empty means no library state was recorded — fall back to all media in raw order.
+    private val displayOrderIndex: Map<String, Int>? =
+        libraryDisplayState.orderedIds.value
+            .takeIf { it.isNotEmpty() }
+            ?.withIndex()
+            ?.associate { (index, id) -> id to index }
+
     init {
         viewModelScope.launch { collectMedia() }
     }
 
     private suspend fun collectMedia() {
-        getAllMediaUseCase.execute().collect { items ->
+        getAllMediaUseCase.execute().collect { rawItems ->
+            val items = applyDisplayOrder(rawItems)
             val currentState = _uiState.value
 
             if (items.isEmpty()) {
@@ -253,6 +265,16 @@ class MediaViewerViewModel(
     override fun onCleared() {
         super.onCleared()
         saveCurrentState()
+    }
+
+    /**
+     * Filters and reorders [rawItems] to match the library's last recorded display order.
+     * Items not present in the snapshot are dropped — this honors the library's active
+     * tag filter. Returns [rawItems] unchanged when no snapshot was recorded.
+     */
+    private fun applyDisplayOrder(rawItems: List<MediaItem>): List<MediaItem> {
+        val index = displayOrderIndex ?: return rawItems
+        return rawItems.filter { it.id in index }.sortedBy { index.getValue(it.id) }
     }
 
     /** Items whose playback state we persist (videos and GIFs). */

@@ -50,11 +50,14 @@ class LibraryViewModelTest {
     private lateinit var viewModel: LibraryViewModel
     private lateinit var collectionJob: Job
 
+    private val libraryDisplayState = LibraryDisplayState()
+
     private fun buildViewModel(
         repository: FakeMediaRepository = fakeRepository,
         thumbnailRepository: FakeThumbnailRepository = fakeThumbnailRepository,
         tagRepository: FakeTagRepository = fakeTagRepository,
         preferencesRepository: FakeUserPreferencesRepository = fakePreferencesRepository,
+        displayState: LibraryDisplayState = libraryDisplayState,
     ) = LibraryViewModel(
         getAllMediaUseCase = GetAllMediaUseCase(repository),
         deleteMediaUseCase = DeleteMediaUseCase(repository, fakeFileStorage()),
@@ -69,6 +72,7 @@ class LibraryViewModelTest {
         reorderTagMediaUseCase = ReorderTagMediaUseCase(tagRepository),
         addMediaUseCase = AddMediaUseCase(repository, fakeFileStorage(), clock = { 0L }),
         metadataExtractor = fakeMetadataExtractor(),
+        libraryDisplayState = displayState,
     )
 
     private fun fakeMetadataExtractor() = object : MediaMetadataExtractor {
@@ -116,6 +120,18 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun `displayState mirrors emitted items in order`() = runTest {
+        fakeItems.value = listOf(
+            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+        )
+
+        // Ensure uiState has emitted before reading the display state.
+        assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+        assertEquals(listOf("a", "b"), libraryDisplayState.orderedIds.value)
+    }
+
+    @Test
     fun `uiState updates when repository emits new list`() = runTest {
         fakeItems.value = listOf(videoItem())
         fakeItems.update { it + videoItem().copy(id = "id-2", filePath = "/media/b.mp4") }
@@ -159,6 +175,7 @@ class LibraryViewModelTest {
             reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
             addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
             metadataExtractor = fakeMetadataExtractor(),
+            libraryDisplayState = LibraryDisplayState(),
         )
         fakeItems.value = listOf(videoItem())
 
@@ -589,6 +606,7 @@ class LibraryViewModelTest {
             reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
             addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
             metadataExtractor = partialExtractor,
+            libraryDisplayState = LibraryDisplayState(),
         )
         var received: String? = null
         val job = launch { partialViewModel.addMediaError.collect { received = it } }

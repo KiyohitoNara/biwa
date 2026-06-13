@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -53,6 +54,7 @@ class LibraryViewModel(
     private val reorderTagMediaUseCase: ReorderTagMediaUseCase,
     private val addMediaUseCase: AddMediaUseCase,
     private val metadataExtractor: MediaMetadataExtractor,
+    private val libraryDisplayState: LibraryDisplayState,
 ) : ViewModel() {
     // IDs for which thumbnail generation has already been scheduled this session.
     private val generatingIds = mutableSetOf<String>()
@@ -110,6 +112,10 @@ class LibraryViewModel(
                     activeTagIds = tagIds,
                 )
             }
+        }
+        .map { state ->
+            libraryDisplayState.update(state.items.map { it.id })
+            state
         }
         .stateIn(
             scope = viewModelScope,
