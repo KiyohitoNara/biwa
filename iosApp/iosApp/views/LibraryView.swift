@@ -248,9 +248,7 @@ private struct MediaGrid: View {
     @State private var dropTargetId: String?
 
     private let columns = [
-        GridItem(.flexible(), spacing: 2),
-        GridItem(.flexible(), spacing: 2),
-        GridItem(.flexible(), spacing: 2),
+        GridItem(.adaptive(minimum: 120), spacing: 2),
     ]
 
     private var isDraggable: Bool { activeTagCount <= 1 }
