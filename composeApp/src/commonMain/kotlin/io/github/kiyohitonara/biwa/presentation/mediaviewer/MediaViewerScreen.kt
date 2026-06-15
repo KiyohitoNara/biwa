@@ -4,7 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,13 +18,17 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -37,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
+import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementUiState
+import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -100,6 +110,7 @@ private fun MediaViewerContent(
     onBack: () -> Unit,
 ) {
     var isZoomed by remember { mutableStateOf(false) }
+    var showTagSheet by remember { mutableStateOf(false) }
     val pagerState = rememberPagerState(
         initialPage = state.currentIndex,
         pageCount = { state.items.size },
@@ -139,8 +150,17 @@ private fun MediaViewerContent(
         TopToolbar(
             state = state,
             onBack = onBack,
+            onEditTags = { showTagSheet = true },
             onDelete = viewModel::deleteCurrentMedia,
             modifier = Modifier.align(Alignment.TopStart),
+        )
+    }
+
+    val currentItem = state.items.getOrNull(state.currentIndex)
+    if (showTagSheet && currentItem != null) {
+        TagAssignmentSheet(
+            mediaId = currentItem.id,
+            onDismiss = { showTagSheet = false },
         )
     }
 }
@@ -149,6 +169,7 @@ private fun MediaViewerContent(
 private fun TopToolbar(
     state: MediaViewerUiState.Ready,
     onBack: () -> Unit,
+    onEditTags: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -187,6 +208,13 @@ private fun TopToolbar(
             } else {
                 Box(modifier = Modifier.weight(1f))
             }
+            IconButton(onClick = onEditTags) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Label,
+                    contentDescription = "Edit tags",
+                    tint = Color.White,
+                )
+            }
             Box {
                 IconButton(onClick = { showOverflowMenu = true }) {
                     Icon(
@@ -203,6 +231,55 @@ private fun TopToolbar(
                         text = { Text("Delete") },
                         onClick = { showOverflowMenu = false; onDelete() },
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Bottom sheet that lets the user toggle each available tag on the current
+ * media item. Mirrors the per-item tag editor used by the library's context
+ * sheet so users get the same workflow without leaving the viewer.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun TagAssignmentSheet(
+    mediaId: String,
+    onDismiss: () -> Unit,
+) {
+    val tagVm: TagManagementViewModel = koinViewModel(key = mediaId) { parametersOf(mediaId) }
+    val tagState by tagVm.uiState.collectAsStateWithLifecycle()
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(bottom = 32.dp)) {
+            Text(
+                text = "Tags",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            val ready = tagState as? TagManagementUiState.Ready
+            if (ready == null || ready.allTags.isEmpty()) {
+                Text(
+                    text = "No tags yet. Create one from the library's Tags screen.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                )
+            } else {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ready.allTags.forEach { tag ->
+                        FilterChip(
+                            selected = ready.mediaTags.any { it.id == tag.id },
+                            onClick = { tagVm.toggleTagForMedia(tag.id) },
+                            label = { Text(tag.name) },
+                        )
+                    }
                 }
             }
         }
