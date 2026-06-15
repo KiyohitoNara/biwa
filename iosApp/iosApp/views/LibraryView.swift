@@ -6,7 +6,6 @@ import ComposeApp
 private final class LibraryViewModelBridge: ObservableObject {
     let vm: LibraryViewModel
     @Published private(set) var items: [SharedMediaItem] = []
-    @Published private(set) var sortOrder: SharedSortOrder = .addedAtDesc
     @Published private(set) var availableTags: [SharedTag] = []
     @Published private(set) var activeTagIds: Set<String> = []
     @Published private(set) var isAdding: Bool = false
@@ -30,7 +29,6 @@ private final class LibraryViewModelBridge: ObservableObject {
                 await MainActor.run {
                     if case .success(let s) = onEnum(of: state) {
                         self?.items = s.items
-                        self?.sortOrder = s.sortOrder
                         self?.availableTags = s.availableTags
                         self?.activeTagIds = s.activeTagIds as? Set<String> ?? []
                     }
@@ -126,7 +124,6 @@ struct LibraryView: View {
                 } else {
                     MediaGrid(
                         items: bridge.items,
-                        sortOrder: bridge.sortOrder,
                         activeTagCount: bridge.activeTagIds.count,
                         onTap: { bridge.openMedia($0.id) },
                         onLongPress: { contextItem = $0 },
@@ -147,6 +144,7 @@ struct LibraryView: View {
                 Button { showSortSheet = true } label: {
                     Image(systemName: "arrow.up.arrow.down")
                 }
+                .disabled(bridge.activeTagIds.count > 1)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -162,7 +160,7 @@ struct LibraryView: View {
             }
         }
         .sheet(isPresented: $showSortSheet) {
-            SortSheet(current: bridge.sortOrder) { order in
+            SortSheet { order in
                 bridge.setSortOrder(order)
                 showSortSheet = false
             }
@@ -241,7 +239,6 @@ private struct TagFilterRow: View {
 
 private struct MediaGrid: View {
     let items: [SharedMediaItem]
-    let sortOrder: SharedSortOrder
     let activeTagCount: Int
     let onTap: (SharedMediaItem) -> Void
     let onLongPress: (SharedMediaItem) -> Void
@@ -256,7 +253,7 @@ private struct MediaGrid: View {
         GridItem(.flexible(), spacing: 2),
     ]
 
-    private var isDraggable: Bool { sortOrder == .manual && activeTagCount <= 1 }
+    private var isDraggable: Bool { activeTagCount <= 1 }
 
     var body: some View {
         ScrollView {
@@ -484,7 +481,6 @@ private struct MediaContextSheet: View {
 }
 
 private struct SortSheet: View {
-    let current: SharedSortOrder
     let onSelect: (SharedSortOrder) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -497,13 +493,7 @@ private struct SortSheet: View {
                         onSelect(order)
                         dismiss()
                     } label: {
-                        HStack {
-                            Text(sortLabel(order)).foregroundStyle(.primary)
-                            Spacer()
-                            if order == current {
-                                Image(systemName: "checkmark").foregroundStyle(Color.accentColor)
-                            }
-                        }
+                        Text(sortLabel(order)).foregroundStyle(.primary)
                     }
                 }
             }
@@ -524,7 +514,6 @@ private struct SortSheet: View {
         case .fileName: return "File name"
         case .lastViewedAt: return "Last viewed"
         case .fileSize: return "File size"
-        case .manual: return "Manual"
         default: return order.name
         }
     }
