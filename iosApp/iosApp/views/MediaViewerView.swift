@@ -1,5 +1,6 @@
 import SwiftUI
 import AVKit
+import ImageIO
 import ComposeApp
 
 extension SharedMediaItem: @retroactive Identifiable {}
@@ -170,11 +171,27 @@ private struct PhotoPage: View {
     @State private var quickZoomBase: CGFloat?
     @State private var quickZoomStartY: CGFloat = 0
 
+    // Used to compute [minScale]: floor zoom-out at the media's natural size
+    // when the image is smaller than the viewport (otherwise floor at fit-to-screen).
+    @State private var imageSize: CGSize = .zero
+    @State private var containerSize: CGSize = .zero
+
     private let doubleTapWindow: TimeInterval = 0.3
     private let touchSlop: CGFloat = 10
     // 200pt of vertical drag = an e-fold (~2.72x) scale change; matches the Android feel.
     private let quickZoomSensitivity: CGFloat = 200
     private let maxZoom: CGFloat = 8
+
+    private var minScale: CGFloat {
+        guard imageSize.width > 0, imageSize.height > 0,
+              containerSize.width > 0, containerSize.height > 0
+        else { return 1 }
+        let fitFactor = min(
+            containerSize.width / imageSize.width,
+            containerSize.height / imageSize.height
+        )
+        return min(1, 1 / fitFactor)
+    }
 
     var body: some View {
         let url = URL(fileURLWithPath: item.filePath)
@@ -235,10 +252,35 @@ private struct PhotoPage: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { containerSize = proxy.size }
+                    .onChange(of: proxy.size) { _, newSize in containerSize = newSize }
+            }
+        )
+        .task(id: item.id) {
+            let path = item.filePath
+            let size = await Task.detached(priority: .userInitiated) {
+                Self.loadIntrinsicSize(path: path)
+            }.value
+            if let size { imageSize = size }
+        }
     }
 
     private func clampScale(_ value: CGFloat) -> CGFloat {
-        min(max(value, 1), maxZoom)
+        min(max(value, minScale), maxZoom)
+    }
+
+    /// Reads only the image header via ImageIO so a 50MP photo doesn't pull pixels into memory.
+    private nonisolated static func loadIntrinsicSize(path: String) -> CGSize? {
+        let url = URL(fileURLWithPath: path)
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any]
+        else { return nil }
+        let w = (props[kCGImagePropertyPixelWidth] as? CGFloat) ?? 0
+        let h = (props[kCGImagePropertyPixelHeight] as? CGFloat) ?? 0
+        return w > 0 && h > 0 ? CGSize(width: w, height: h) : nil
     }
 }
 
