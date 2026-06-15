@@ -59,6 +59,7 @@ struct MediaViewerView: View {
     let onBack: () -> Void
 
     @StateObject private var bridge: MediaViewerViewModelBridge
+    @State private var tagSheetItem: SharedMediaItem?
 
     init(mediaId: String, onBack: @escaping () -> Void) {
         self.mediaId = mediaId
@@ -78,6 +79,11 @@ struct MediaViewerView: View {
                 ViewerTopBar(
                     title: currentTitle,
                     onBack: onBack,
+                    onEditTags: {
+                        if let item = currentItem {
+                            tagSheetItem = item
+                        }
+                    },
                     onDelete: { bridge.deleteCurrentMedia() }
                 )
             }
@@ -85,12 +91,17 @@ struct MediaViewerView: View {
         .navigationBarBackButtonHidden()
         .toolbarVisibility(.hidden, for: .navigationBar)
         .onDisappear { bridge.saveCurrentState() }
+        .sheet(item: $tagSheetItem) { item in
+            TagAssignmentSheet(mediaId: item.id, onDismiss: { tagSheetItem = nil })
+        }
     }
 
-    private var currentTitle: String {
-        guard bridge.currentIndex < bridge.items.count else { return "" }
-        return bridge.items[bridge.currentIndex].displayName
+    private var currentItem: SharedMediaItem? {
+        guard bridge.currentIndex < bridge.items.count else { return nil }
+        return bridge.items[bridge.currentIndex]
     }
+
+    private var currentTitle: String { currentItem?.displayName ?? "" }
 }
 
 private struct MediaPager: View {
@@ -266,6 +277,7 @@ private struct VideoPlayerRepresentable: UIViewControllerRepresentable {
 private struct ViewerTopBar: View {
     let title: String
     let onBack: () -> Void
+    let onEditTags: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -288,6 +300,14 @@ private struct ViewerTopBar: View {
 
                 Spacer()
 
+                Button(action: onEditTags) {
+                    Image(systemName: "tag")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(8)
+                        .background(Circle().fill(.black.opacity(0.4)))
+                }
+
                 Menu {
                     Button(role: .destructive, action: onDelete) {
                         Label("Delete", systemImage: "trash")
@@ -307,3 +327,77 @@ private struct ViewerTopBar: View {
         }
     }
 }
+
+@MainActor
+private final class TagAssignmentBridge: ObservableObject {
+    private let vm: TagManagementViewModel
+    @Published private(set) var allTags: [SharedTag] = []
+    @Published private(set) var mediaTags: [SharedTag] = []
+    private var stateTask: Task<Void, Never>?
+
+    init(mediaId: String) {
+        let kvm = ViewModelFactory.shared.makeTagManagementViewModel(mediaId: mediaId)
+        vm = kvm
+        stateTask = Task { [weak self] in
+            for await state in kvm.uiState {
+                await MainActor.run {
+                    if case .ready(let r) = onEnum(of: state) {
+                        self?.allTags = r.allTags
+                        self?.mediaTags = r.mediaTags
+                    }
+                }
+            }
+        }
+    }
+
+    deinit { stateTask?.cancel() }
+
+    func toggleTag(_ id: String) { vm.toggleTagForMedia(tagId: id) }
+}
+
+private struct TagAssignmentSheet: View {
+    let mediaId: String
+    let onDismiss: () -> Void
+
+    @StateObject private var bridge: TagAssignmentBridge
+
+    init(mediaId: String, onDismiss: @escaping () -> Void) {
+        self.mediaId = mediaId
+        self.onDismiss = onDismiss
+        _bridge = StateObject(wrappedValue: TagAssignmentBridge(mediaId: mediaId))
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if bridge.allTags.isEmpty {
+                    Text("No tags yet. Create one from the library's Tags screen.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(bridge.allTags) { tag in
+                        Button {
+                            bridge.toggleTag(tag.id)
+                        } label: {
+                            HStack {
+                                Text(tag.name).foregroundStyle(.primary)
+                                Spacer()
+                                if bridge.mediaTags.contains(where: { $0.id == tag.id }) {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Tags")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done", action: onDismiss)
+                }
+            }
+        }
+    }
+}
+
