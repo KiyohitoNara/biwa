@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Rotate90DegreesCw
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -34,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -111,6 +113,7 @@ private fun MediaViewerContent(
 ) {
     var isZoomed by remember { mutableStateOf(false) }
     var showTagSheet by remember { mutableStateOf(false) }
+    var rotationDegrees by remember { mutableIntStateOf(0) }
     val pagerState = rememberPagerState(
         initialPage = state.currentIndex,
         pageCount = { state.items.size },
@@ -119,6 +122,7 @@ private fun MediaViewerContent(
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { page ->
             isZoomed = false
+            rotationDegrees = 0
             viewModel.onMediaChanged(page)
         }
     }
@@ -135,6 +139,7 @@ private fun MediaViewerContent(
             when (item.mediaType) {
                 MediaType.PHOTO -> PhotoPage(
                     filePath = item.filePath,
+                    rotationDegrees = if (isActive) rotationDegrees else 0,
                     onTap = viewModel::toggleToolbar,
                     onZoomChanged = { zoomed -> isZoomed = zoomed },
                 )
@@ -147,10 +152,13 @@ private fun MediaViewerContent(
             }
         }
 
+        val currentMediaType = state.items.getOrNull(state.currentIndex)?.mediaType
         TopToolbar(
             state = state,
             onBack = onBack,
             onEditTags = { showTagSheet = true },
+            onRotate = { rotationDegrees = (rotationDegrees + 90) % 360 },
+            rotateEnabled = currentMediaType == MediaType.PHOTO,
             onDelete = viewModel::deleteCurrentMedia,
             modifier = Modifier.align(Alignment.TopStart),
         )
@@ -170,6 +178,8 @@ private fun TopToolbar(
     state: MediaViewerUiState.Ready,
     onBack: () -> Unit,
     onEditTags: () -> Unit,
+    onRotate: () -> Unit,
+    rotateEnabled: Boolean,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -207,6 +217,15 @@ private fun TopToolbar(
                 )
             } else {
                 Box(modifier = Modifier.weight(1f))
+            }
+            if (rotateEnabled) {
+                IconButton(onClick = onRotate) {
+                    Icon(
+                        imageVector = Icons.Filled.Rotate90DegreesCw,
+                        contentDescription = "Rotate",
+                        tint = Color.White,
+                    )
+                }
             }
             IconButton(onClick = onEditTags) {
                 Icon(

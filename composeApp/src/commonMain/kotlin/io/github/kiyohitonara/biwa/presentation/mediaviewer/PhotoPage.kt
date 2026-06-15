@@ -37,6 +37,7 @@ private const val QUICK_ZOOM_SENSITIVITY_PX = 200f
 @Composable
 fun PhotoPage(
     filePath: String,
+    rotationDegrees: Int = 0,
     onTap: () -> Unit,
     onZoomChanged: (Boolean) -> Unit = {},
 ) {
@@ -143,6 +144,7 @@ fun PhotoPage(
                     scaleY = scale,
                     translationX = offset.x,
                     translationY = offset.y,
+                    rotationZ = rotationDegrees.toFloat(),
                 ),
         )
     }
