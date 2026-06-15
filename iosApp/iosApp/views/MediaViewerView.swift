@@ -164,6 +164,18 @@ private struct PhotoPage: View {
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
 
+    // Tracks the time of the most recent finger-up that was a tap (no drag).
+    // Used to recognise "tap → second touch held → drag" as a quick-zoom gesture.
+    @State private var lastTapEnded: Date?
+    @State private var quickZoomBase: CGFloat?
+    @State private var quickZoomStartY: CGFloat = 0
+
+    private let doubleTapWindow: TimeInterval = 0.3
+    private let touchSlop: CGFloat = 10
+    // 200pt of vertical drag = an e-fold (~2.72x) scale change; matches the Android feel.
+    private let quickZoomSensitivity: CGFloat = 200
+    private let maxZoom: CGFloat = 8
+
     var body: some View {
         let url = URL(fileURLWithPath: item.filePath)
         AsyncImage(url: url) { phase in
@@ -176,8 +188,39 @@ private struct PhotoPage: View {
                     .rotationEffect(.degrees(Double(rotationDegrees)))
                     .gesture(
                         MagnificationGesture()
-                            .onChanged { value in scale = lastScale * value }
+                            .onChanged { value in scale = clampScale(lastScale * value) }
                             .onEnded { _ in lastScale = scale }
+                    )
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                if quickZoomBase == nil,
+                                   let firstTap = lastTapEnded,
+                                   Date().timeIntervalSince(firstTap) < doubleTapWindow,
+                                   abs(value.translation.height) > touchSlop,
+                                   abs(value.translation.height) > abs(value.translation.width) {
+                                    quickZoomBase = scale
+                                    quickZoomStartY = value.startLocation.y
+                                    lastTapEnded = nil
+                                }
+                                if let base = quickZoomBase {
+                                    let dy = value.location.y - quickZoomStartY
+                                    scale = clampScale(base * exp(dy / quickZoomSensitivity))
+                                    lastScale = scale
+                                }
+                            }
+                            .onEnded { value in
+                                let dist = hypot(value.translation.width, value.translation.height)
+                                if quickZoomBase == nil && dist < touchSlop {
+                                    if let prev = lastTapEnded,
+                                       Date().timeIntervalSince(prev) < doubleTapWindow {
+                                        lastTapEnded = nil
+                                    } else {
+                                        lastTapEnded = Date()
+                                    }
+                                }
+                                quickZoomBase = nil
+                            }
                     )
                     .onTapGesture(count: 2) {
                         withAnimation { scale = scale > 1 ? 1 : 2; lastScale = scale }
@@ -192,6 +235,10 @@ private struct PhotoPage: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func clampScale(_ value: CGFloat) -> CGFloat {
+        min(max(value, 1), maxZoom)
     }
 }
 
