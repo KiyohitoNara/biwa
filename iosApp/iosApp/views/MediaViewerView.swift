@@ -60,6 +60,7 @@ struct MediaViewerView: View {
 
     @StateObject private var bridge: MediaViewerViewModelBridge
     @State private var tagSheetItem: SharedMediaItem?
+    @State private var rotationDegrees: Int = 0
 
     init(mediaId: String, onBack: @escaping () -> Void) {
         self.mediaId = mediaId
@@ -72,13 +73,15 @@ struct MediaViewerView: View {
             Color.black.ignoresSafeArea()
 
             if !bridge.items.isEmpty {
-                MediaPager(bridge: bridge)
+                MediaPager(bridge: bridge, rotationDegrees: rotationDegrees)
             }
 
             if bridge.isToolbarVisible {
                 ViewerTopBar(
                     title: currentTitle,
                     onBack: onBack,
+                    onRotate: { rotationDegrees = (rotationDegrees + 90) % 360 },
+                    rotateEnabled: currentItem?.mediaType == .photo,
                     onEditTags: {
                         if let item = currentItem {
                             tagSheetItem = item
@@ -91,6 +94,7 @@ struct MediaViewerView: View {
         .navigationBarBackButtonHidden()
         .toolbarVisibility(.hidden, for: .navigationBar)
         .onDisappear { bridge.saveCurrentState() }
+        .onChange(of: bridge.currentIndex) { _ in rotationDegrees = 0 }
         .sheet(item: $tagSheetItem) { item in
             TagAssignmentSheet(mediaId: item.id, onDismiss: { tagSheetItem = nil })
         }
@@ -106,13 +110,19 @@ struct MediaViewerView: View {
 
 private struct MediaPager: View {
     @ObservedObject var bridge: MediaViewerViewModelBridge
+    let rotationDegrees: Int
     @State private var pageIndex: Int = 0
 
     var body: some View {
         TabView(selection: $pageIndex) {
             ForEach(Array(bridge.items.enumerated()), id: \.element.id) { index, item in
-                MediaPageView(item: item, isActive: index == pageIndex, bridge: bridge)
-                    .tag(index)
+                MediaPageView(
+                    item: item,
+                    isActive: index == pageIndex,
+                    rotationDegrees: index == pageIndex ? rotationDegrees : 0,
+                    bridge: bridge
+                )
+                .tag(index)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
@@ -134,6 +144,7 @@ private struct MediaPager: View {
 private struct MediaPageView: View {
     let item: SharedMediaItem
     let isActive: Bool
+    let rotationDegrees: Int
     @ObservedObject var bridge: MediaViewerViewModelBridge
 
     var body: some View {
@@ -141,13 +152,14 @@ private struct MediaPageView: View {
         case .video:
             VideoPlayerPage(item: item, isActive: isActive, bridge: bridge)
         default:
-            PhotoPage(item: item)
+            PhotoPage(item: item, rotationDegrees: rotationDegrees)
         }
     }
 }
 
 private struct PhotoPage: View {
     let item: SharedMediaItem
+    let rotationDegrees: Int
 
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
@@ -161,6 +173,7 @@ private struct PhotoPage: View {
                     .resizable()
                     .scaledToFit()
                     .scaleEffect(scale)
+                    .rotationEffect(.degrees(Double(rotationDegrees)))
                     .gesture(
                         MagnificationGesture()
                             .onChanged { value in scale = lastScale * value }
@@ -277,6 +290,8 @@ private struct VideoPlayerRepresentable: UIViewControllerRepresentable {
 private struct ViewerTopBar: View {
     let title: String
     let onBack: () -> Void
+    let onRotate: () -> Void
+    let rotateEnabled: Bool
     let onEditTags: () -> Void
     let onDelete: () -> Void
 
@@ -299,6 +314,16 @@ private struct ViewerTopBar: View {
                     .lineLimit(1)
 
                 Spacer()
+
+                if rotateEnabled {
+                    Button(action: onRotate) {
+                        Image(systemName: "rotate.right")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(8)
+                            .background(Circle().fill(.black.opacity(0.4)))
+                    }
+                }
 
                 Button(action: onEditTags) {
                     Image(systemName: "tag")
