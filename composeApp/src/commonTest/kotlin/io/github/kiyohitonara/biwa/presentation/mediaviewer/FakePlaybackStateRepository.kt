@@ -8,5 +8,8 @@ class FakePlaybackStateRepository : PlaybackStateRepository {
     private val stored = mutableMapOf<String, PlaybackState>()
 
     override suspend fun getPlaybackState(videoId: String): PlaybackState? = stored[videoId]
-    override suspend fun savePlaybackState(state: PlaybackState) { stored[state.videoId] = state }
+
+    override suspend fun savePlaybackState(state: PlaybackState) {
+        stored[state.videoId] = state
+    }
 }

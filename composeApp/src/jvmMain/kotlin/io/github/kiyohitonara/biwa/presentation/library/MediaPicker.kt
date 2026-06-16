@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 @Composable
 actual fun MediaPicker(
     active: Boolean,
-    onPicked: (List<String>) -> Unit,
+    onPick: (List<String>) -> Unit,
     onCancel: () -> Unit,
 ) {
 }

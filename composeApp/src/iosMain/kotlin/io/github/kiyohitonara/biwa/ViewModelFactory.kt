@@ -21,14 +21,12 @@ object ViewModelFactory : KoinComponent {
      *
      * @param mediaId ID of the media item to show first.
      */
-    fun makeMediaViewerViewModel(mediaId: String): MediaViewerViewModel =
-        get { parametersOf(mediaId) }
+    fun makeMediaViewerViewModel(mediaId: String): MediaViewerViewModel = get { parametersOf(mediaId) }
 
     /**
      * Returns a new [TagManagementViewModel] instance from the Koin container.
      *
      * Pass [mediaId] to enable per-media tag toggling; pass null for global tag management.
      */
-    fun makeTagManagementViewModel(mediaId: String?): TagManagementViewModel =
-        get { parametersOf(mediaId) }
+    fun makeTagManagementViewModel(mediaId: String?): TagManagementViewModel = get { parametersOf(mediaId) }
 }

@@ -18,11 +18,20 @@ interface MediaRepository {
     suspend fun deleteMedia(id: String)
 
     /** Updates [lastViewedAt] for the item with the given [id]. */
-    suspend fun updateLastViewedAt(id: String, timestamp: Long)
+    suspend fun updateLastViewedAt(
+        id: String,
+        timestamp: Long,
+    )
 
     /** Updates [thumbnailPath] for the item with the given [id]. */
-    suspend fun updateThumbnailPath(id: String, path: String)
+    suspend fun updateThumbnailPath(
+        id: String,
+        path: String,
+    )
 
     /** Updates [sortOrder] for the item with the given [id]. */
-    suspend fun updateSortOrder(id: String, sortOrder: Long)
+    suspend fun updateSortOrder(
+        id: String,
+        sortOrder: Long,
+    )
 }

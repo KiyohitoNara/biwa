@@ -32,7 +32,7 @@ class SavePlaybackStateUseCase(
                 abEndMs = abEndMs,
                 playbackSpeed = playbackSpeed,
                 updatedAt = clock(),
-            )
+            ),
         )
     }
 }

@@ -17,18 +17,20 @@ class UserPreferencesUseCaseTest {
     private val setThemeUseCase = SetThemeUseCase(repository)
 
     @Test
-    fun `GetUserPreferencesUseCase emits default preferences initially`() = runTest {
-        val prefs = getUseCase.execute().first()
-        assertEquals(AppTheme.SYSTEM, prefs.theme)
-    }
+    fun `GetUserPreferencesUseCase emits default preferences initially`() =
+        runTest {
+            val prefs = getUseCase.execute().first()
+            assertEquals(AppTheme.SYSTEM, prefs.theme)
+        }
 
     @Test
-    fun `SetThemeUseCase persists theme`() = runTest {
-        setThemeUseCase.execute(AppTheme.DARK)
+    fun `SetThemeUseCase persists theme`() =
+        runTest {
+            setThemeUseCase.execute(AppTheme.DARK)
 
-        val prefs = getUseCase.execute().first()
-        assertEquals(AppTheme.DARK, prefs.theme)
-    }
+            val prefs = getUseCase.execute().first()
+            assertEquals(AppTheme.DARK, prefs.theme)
+        }
 }
 
 private class FakeUserPreferencesRepository : UserPreferencesRepository {

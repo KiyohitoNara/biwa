@@ -12,18 +12,19 @@ import androidx.compose.runtime.rememberUpdatedState
 @Composable
 actual fun MediaPicker(
     active: Boolean,
-    onPicked: (List<String>) -> Unit,
+    onPick: (List<String>) -> Unit,
     onCancel: () -> Unit,
 ) {
-    val onPickedState = rememberUpdatedState(onPicked)
+    val onPickState = rememberUpdatedState(onPick)
     val onCancelState = rememberUpdatedState(onCancel)
-    val launcher = rememberLauncherForActivityResult(PickMultipleVisualMedia()) { uris ->
-        if (uris.isEmpty()) {
-            onCancelState.value()
-        } else {
-            onPickedState.value(uris.map { it.toString() })
+    val launcher =
+        rememberLauncherForActivityResult(PickMultipleVisualMedia()) { uris ->
+            if (uris.isEmpty()) {
+                onCancelState.value()
+            } else {
+                onPickState.value(uris.map { it.toString() })
+            }
         }
-    }
     LaunchedEffect(active) {
         if (active) {
             launcher.launch(PickVisualMediaRequest(ImageAndVideo))

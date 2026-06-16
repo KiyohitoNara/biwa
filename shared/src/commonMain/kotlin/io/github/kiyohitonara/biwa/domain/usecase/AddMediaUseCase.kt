@@ -30,21 +30,22 @@ class AddMediaUseCase(
     suspend fun execute(request: AddMediaRequest): MediaItem {
         val id = Uuid.random().toString()
         val filePath = fileStorage.copyToInternalStorage(request.sourceUri, request.fileName)
-        val item = MediaItem(
-            id = id,
-            filePath = filePath,
-            mediaType = request.mediaType,
-            displayName = request.displayName,
-            durationMs = request.durationMs,
-            widthPx = request.widthPx,
-            heightPx = request.heightPx,
-            fileSizeBytes = request.fileSizeBytes,
-            thumbnailPath = null,
-            takenAt = request.takenAt,
-            sortOrder = request.sortOrder,
-            lastViewedAt = null,
-            addedAt = clock(),
-        )
+        val item =
+            MediaItem(
+                id = id,
+                filePath = filePath,
+                mediaType = request.mediaType,
+                displayName = request.displayName,
+                durationMs = request.durationMs,
+                widthPx = request.widthPx,
+                heightPx = request.heightPx,
+                fileSizeBytes = request.fileSizeBytes,
+                thumbnailPath = null,
+                takenAt = request.takenAt,
+                sortOrder = request.sortOrder,
+                lastViewedAt = null,
+                addedAt = clock(),
+            )
         repository.addMedia(item)
         return item
     }

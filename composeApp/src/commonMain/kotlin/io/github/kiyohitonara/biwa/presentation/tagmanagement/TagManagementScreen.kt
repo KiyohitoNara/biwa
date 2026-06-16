@@ -91,18 +91,20 @@ fun TagManagementScreen(
 
         if (ready != null && ready.allTags.isEmpty()) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
                 EmptyTags()
             }
         } else if (ready != null) {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
             ) {
                 items(ready.allTags, key = { it.id }) { tag ->
                     TagRow(
@@ -159,9 +161,10 @@ private fun TagRow(
     onDelete: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -229,9 +232,10 @@ private fun TagNameDialog(
                 singleLine = true,
                 label = { Text("Name") },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = {
-                    if (name.isNotBlank()) onConfirm(name)
-                }),
+                keyboardActions =
+                    KeyboardActions(onDone = {
+                        if (name.isNotBlank()) onConfirm(name)
+                    }),
                 modifier = Modifier.focusRequester(focusRequester),
             )
         },

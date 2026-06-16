@@ -7,6 +7,5 @@ import io.github.kiyohitonara.biwa.data.local.BiwaDatabase
 /** iOS implementation using [NativeSqliteDriver]. */
 actual class DatabaseDriverFactory {
     /** Returns a [NativeSqliteDriver] backed by the app's SQLite database. */
-    actual fun createDriver(): SqlDriver =
-        NativeSqliteDriver(BiwaDatabase.Schema, "biwa.db")
+    actual fun createDriver(): SqlDriver = NativeSqliteDriver(BiwaDatabase.Schema, "biwa.db")
 }

@@ -16,7 +16,10 @@ expect class FileManager : FileStorage {
      * @param fileName Destination file name (must be unique within internal storage).
      * @return Absolute path of the copied file in internal storage.
      */
-    override suspend fun copyToInternalStorage(sourceUri: String, fileName: String): String
+    override suspend fun copyToInternalStorage(
+        sourceUri: String,
+        fileName: String,
+    ): String
 
     /**
      * Deletes the file at [filePath] from app-internal storage.

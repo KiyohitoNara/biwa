@@ -20,7 +20,7 @@ class ResetAbRepeatUseCase(
     suspend fun execute(videoId: String) {
         val current = repository.getPlaybackState(videoId) ?: return
         repository.savePlaybackState(
-            current.copy(abStartMs = null, abEndMs = null, updatedAt = clock())
+            current.copy(abStartMs = null, abEndMs = null, updatedAt = clock()),
         )
     }
 }

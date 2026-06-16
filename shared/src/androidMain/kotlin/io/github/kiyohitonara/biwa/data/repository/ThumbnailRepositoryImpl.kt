@@ -10,17 +10,20 @@ import java.io.File
 import java.io.FileOutputStream
 
 /** Android implementation that extracts frames via [MediaMetadataRetriever]. */
-class ThumbnailRepositoryImpl(private val context: Context) : ThumbnailRepository {
+class ThumbnailRepositoryImpl(
+    private val context: Context,
+) : ThumbnailRepository {
     override suspend fun generateVideoThumbnail(videoPath: String): String? =
         withContext(Dispatchers.IO) {
             try {
-                val bitmap = MediaMetadataRetriever().use { retriever ->
-                    retriever.setDataSource(videoPath)
-                    retriever.getFrameAtTime(
-                        1_000_000L,
-                        MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-                    )
-                } ?: return@withContext null
+                val bitmap =
+                    MediaMetadataRetriever().use { retriever ->
+                        retriever.setDataSource(videoPath)
+                        retriever.getFrameAtTime(
+                            1_000_000L,
+                            MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                        )
+                    } ?: return@withContext null
 
                 val cacheDir = File(context.cacheDir, "thumbnails").also { it.mkdirs() }
                 val file = File(cacheDir, "${videoPath.hashCode()}.jpg")

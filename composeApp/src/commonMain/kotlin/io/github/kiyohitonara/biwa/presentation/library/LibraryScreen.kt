@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -147,7 +146,10 @@ fun LibraryScreen(
                     ) {
                         DropdownMenuItem(
                             text = { Text("Settings") },
-                            onClick = { showOverflowMenu = false; onOpenSettings() },
+                            onClick = {
+                                showOverflowMenu = false
+                                onOpenSettings()
+                            },
                         )
                     }
                 },
@@ -161,9 +163,10 @@ fun LibraryScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
         ) {
             if (isAdding) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -201,7 +204,7 @@ fun LibraryScreen(
 
     MediaPicker(
         active = pickerActive,
-        onPicked = { uris ->
+        onPick = { uris ->
             pickerActive = false
             viewModel.addMedia(uris)
         },
@@ -210,7 +213,10 @@ fun LibraryScreen(
 
     if (showSortSheet) {
         SortSelectionSheet(
-            onSortSelected = { viewModel.setSortOrder(it); showSortSheet = false },
+            onSortSelected = {
+                viewModel.setSortOrder(it)
+                showSortSheet = false
+            },
             onDismiss = { showSortSheet = false },
         )
     }
@@ -235,10 +241,11 @@ private fun TagFilterChipsRow(
 ) {
     if (availableTags.isEmpty()) return
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -269,10 +276,11 @@ private fun SortSelectionSheet(
             Text(
                 text = sortLabel(order),
                 style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSortSelected(order) }
-                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { onSortSelected(order) }
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
             )
         }
         Spacer(modifier = Modifier.height(32.dp))
@@ -308,9 +316,10 @@ private fun MediaContextSheet(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
                 )
                 FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ready.allTags.forEach { tag ->
@@ -327,9 +336,10 @@ private fun MediaContextSheet(
 
             TextButton(
                 onClick = onDelete,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
             ) {
                 Text(
                     text = "Delete",
@@ -405,12 +415,13 @@ private fun StaticMediaGrid(
     ) {
         itemsIndexed(items, key = { _, item -> item.id }) { _, item ->
             Box(
-                modifier = Modifier
-                    .aspectRatio(1f)
-                    .combinedClickable(
-                        onClick = { onTap(item) },
-                        onLongClick = { onLongPress(item) },
-                    ),
+                modifier =
+                    Modifier
+                        .aspectRatio(1f)
+                        .combinedClickable(
+                            onClick = { onTap(item) },
+                            onLongClick = { onLongPress(item) },
+                        ),
             ) {
                 ThumbnailImage(item)
                 MediaTypeBadge(item)
@@ -446,64 +457,64 @@ private fun DraggableMediaGrid(
                 val isDragActive = draggedKey != null
 
                 Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .onGloballyPositioned { coords ->
-                            itemBounds[item.id] = coords.boundsInRoot()
-                        }
-                        .graphicsLayer {
-                            when {
-                                isDragged -> {
-                                    scaleX = 1.07f
-                                    scaleY = 1.07f
-                                    shadowElevation = 16f
-                                    alpha = 0.85f
-                                }
-                                isDragActive && !isDropTarget -> alpha = 0.55f
-                            }
-                        }
-                        .pointerInput(item.id) {
-                            val slop = viewConfiguration.touchSlop
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = { _ ->
-                                    draggedKey = item.id
-                                    dropTargetKey = item.id
-                                    dragOffset = Offset.Zero
-                                    dragStartBounds = itemBounds[item.id] ?: Rect.Zero
-                                },
-                                onDrag = { _, amount ->
-                                    dragOffset += amount
-                                    val pointerPos = Offset(
-                                        dragStartBounds.center.x + dragOffset.x,
-                                        dragStartBounds.center.y + dragOffset.y,
-                                    )
-                                    dropTargetKey = itemBounds.entries
-                                        .minByOrNull { (_, bounds) ->
-                                            (pointerPos - bounds.center).getDistance()
-                                        }?.key
-                                },
-                                onDragEnd = {
-                                    val draggedItemId = draggedKey
-                                    val fromIdx = items.indexOfFirst { it.id == draggedItemId }
-                                    val toIdx = items.indexOfFirst { it.id == dropTargetKey }
-                                    val moved = dragOffset.getDistance() > slop
-                                    if (!moved && draggedItemId != null) {
-                                        items.firstOrNull { it.id == draggedItemId }?.let(onLongPress)
-                                    } else if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
-                                        onReorder(fromIdx, toIdx)
+                    modifier =
+                        Modifier
+                            .aspectRatio(1f)
+                            .onGloballyPositioned { coords ->
+                                itemBounds[item.id] = coords.boundsInRoot()
+                            }.graphicsLayer {
+                                when {
+                                    isDragged -> {
+                                        scaleX = 1.07f
+                                        scaleY = 1.07f
+                                        shadowElevation = 16f
+                                        alpha = 0.85f
                                     }
-                                    draggedKey = null
-                                    dropTargetKey = null
-                                    dragOffset = Offset.Zero
-                                },
-                                onDragCancel = {
-                                    draggedKey = null
-                                    dropTargetKey = null
-                                    dragOffset = Offset.Zero
-                                },
-                            )
-                        }
-                        .clickable { if (draggedKey == null) onTap(item) },
+                                    isDragActive && !isDropTarget -> alpha = 0.55f
+                                }
+                            }.pointerInput(item.id) {
+                                val slop = viewConfiguration.touchSlop
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { _ ->
+                                        draggedKey = item.id
+                                        dropTargetKey = item.id
+                                        dragOffset = Offset.Zero
+                                        dragStartBounds = itemBounds[item.id] ?: Rect.Zero
+                                    },
+                                    onDrag = { _, amount ->
+                                        dragOffset += amount
+                                        val pointerPos =
+                                            Offset(
+                                                dragStartBounds.center.x + dragOffset.x,
+                                                dragStartBounds.center.y + dragOffset.y,
+                                            )
+                                        dropTargetKey =
+                                            itemBounds.entries
+                                                .minByOrNull { (_, bounds) ->
+                                                    (pointerPos - bounds.center).getDistance()
+                                                }?.key
+                                    },
+                                    onDragEnd = {
+                                        val draggedItemId = draggedKey
+                                        val fromIdx = items.indexOfFirst { it.id == draggedItemId }
+                                        val toIdx = items.indexOfFirst { it.id == dropTargetKey }
+                                        val moved = dragOffset.getDistance() > slop
+                                        if (!moved && draggedItemId != null) {
+                                            items.firstOrNull { it.id == draggedItemId }?.let(onLongPress)
+                                        } else if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
+                                            onReorder(fromIdx, toIdx)
+                                        }
+                                        draggedKey = null
+                                        dropTargetKey = null
+                                        dragOffset = Offset.Zero
+                                    },
+                                    onDragCancel = {
+                                        draggedKey = null
+                                        dropTargetKey = null
+                                        dragOffset = Offset.Zero
+                                    },
+                                )
+                            }.clickable { if (draggedKey == null) onTap(item) },
                 ) {
                     ThumbnailImage(item)
                     MediaTypeBadge(item)
@@ -524,27 +535,36 @@ private fun ThumbnailImage(item: MediaItem) {
 }
 
 @Composable
-private fun MediaTypeBadge(item: MediaItem, modifier: Modifier = Modifier) {
+private fun MediaTypeBadge(
+    item: MediaItem,
+    modifier: Modifier = Modifier,
+) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (item.mediaType) {
-            MediaType.VIDEO -> VideoBadge(
-                durationMs = item.durationMs,
-                modifier = Modifier.align(Alignment.BottomStart),
-            )
-            MediaType.GIF -> GifBadge(
-                modifier = Modifier.align(Alignment.BottomStart),
-            )
+            MediaType.VIDEO ->
+                VideoBadge(
+                    durationMs = item.durationMs,
+                    modifier = Modifier.align(Alignment.BottomStart),
+                )
+            MediaType.GIF ->
+                GifBadge(
+                    modifier = Modifier.align(Alignment.BottomStart),
+                )
             MediaType.PHOTO -> Unit
         }
     }
 }
 
 @Composable
-private fun VideoBadge(durationMs: Long?, modifier: Modifier = Modifier) {
+private fun VideoBadge(
+    durationMs: Long?,
+    modifier: Modifier = Modifier,
+) {
     Row(
-        modifier = modifier
-            .background(Color.Black.copy(alpha = 0.6f))
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+        modifier =
+            modifier
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(horizontal = 4.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -570,19 +590,21 @@ private fun GifBadge(modifier: Modifier = Modifier) {
         text = "GIF",
         color = Color.White,
         style = MaterialTheme.typography.labelSmall,
-        modifier = modifier
-            .background(Color.Black.copy(alpha = 0.6f))
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+        modifier =
+            modifier
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(horizontal = 4.dp, vertical = 2.dp),
     )
 }
 
-private fun sortLabel(order: SortOrder) = when (order) {
-    SortOrder.ADDED_AT_DESC -> "Added (newest first)"
-    SortOrder.ADDED_AT_ASC -> "Added (oldest first)"
-    SortOrder.FILE_NAME -> "File name"
-    SortOrder.LAST_VIEWED_AT -> "Last viewed"
-    SortOrder.FILE_SIZE -> "File size"
-}
+private fun sortLabel(order: SortOrder) =
+    when (order) {
+        SortOrder.ADDED_AT_DESC -> "Added (newest first)"
+        SortOrder.ADDED_AT_ASC -> "Added (oldest first)"
+        SortOrder.FILE_NAME -> "File name"
+        SortOrder.LAST_VIEWED_AT -> "Last viewed"
+        SortOrder.FILE_SIZE -> "File size"
+    }
 
 private fun formatDuration(ms: Long): String {
     val totalSeconds = ms / 1_000

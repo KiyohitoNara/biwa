@@ -8,8 +8,14 @@ package io.github.kiyohitonara.biwa.domain.storage
  */
 interface PreferencesStorage {
     /** Returns the [String] value for [key], or [default] if not set. */
-    fun getString(key: String, default: String): String
+    fun getString(
+        key: String,
+        default: String,
+    ): String
 
     /** Persists [value] for [key]. */
-    fun setString(key: String, value: String)
+    fun setString(
+        key: String,
+        value: String,
+    )
 }

@@ -23,11 +23,12 @@ actual fun VideoPage(
     state: MediaViewerUiState.Ready,
     viewModel: MediaViewerViewModel,
 ) {
-    val controller = remember(item.id) {
-        val url = NSURL.fileURLWithPath(item.filePath)
-        val avPlayer = AVPlayer(uRL = url)
-        AVPlayerViewController().also { it.player = avPlayer }
-    }
+    val controller =
+        remember(item.id) {
+            val url = NSURL.fileURLWithPath(item.filePath)
+            val avPlayer = AVPlayer(uRL = url)
+            AVPlayerViewController().also { it.player = avPlayer }
+        }
 
     LaunchedEffect(isActive) {
         if (isActive) controller.player?.play() else controller.player?.pause()

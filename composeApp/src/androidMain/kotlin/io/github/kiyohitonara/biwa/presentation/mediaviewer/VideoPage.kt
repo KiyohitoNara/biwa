@@ -50,7 +50,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem as Media3MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -58,6 +57,7 @@ import androidx.media3.ui.PlayerView
 import io.github.kiyohitonara.biwa.domain.model.AbPoint
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import kotlinx.coroutines.delay
+import androidx.media3.common.MediaItem as Media3MediaItem
 
 private val PLAYBACK_SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
 private const val FRAME_STEP_MS = 33L
@@ -104,17 +104,18 @@ actual fun VideoPage(
     }
 
     DisposableEffect(player) {
-        val listener = object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                if (isCurrent) viewModel.updatePlayingState(isPlaying)
-            }
+        val listener =
+            object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isCurrent) viewModel.updatePlayingState(isPlaying)
+                }
 
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (isCurrent && playbackState == Player.STATE_READY) {
-                    viewModel.updateDuration(player.duration.coerceAtLeast(0L))
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (isCurrent && playbackState == Player.STATE_READY) {
+                        viewModel.updateDuration(player.duration.coerceAtLeast(0L))
+                    }
                 }
             }
-        }
         player.addListener(listener)
         onDispose {
             player.removeListener(listener)
@@ -149,16 +150,17 @@ actual fun VideoPage(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = {
-                    viewModel.toggleToolbar()
-                    viewModel.toggleControls()
-                },
-            ),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = {
+                        viewModel.toggleToolbar()
+                        viewModel.toggleControls()
+                    },
+                ),
     ) {
         AndroidView(
             factory = { ctx ->
@@ -227,11 +229,12 @@ private fun BottomControls(
     val scrim = Color.Black.copy(alpha = 0.5f)
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(scrim)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .align(Alignment.BottomCenter),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .background(scrim)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .align(Alignment.BottomCenter),
         ) {
             SeekBar(
                 positionMs = state.positionMs,
@@ -319,31 +322,33 @@ private fun SeekBar(
         ) {
             if (abStartFraction != null && abEndFraction != null) {
                 Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .padding(horizontal = 10.dp)
-                        .drawBehind {
-                            val startX = abStartFraction * size.width
-                            val endX = abEndFraction * size.width
-                            drawRoundRect(
-                                color = BrandOrange,
-                                topLeft = Offset(startX.coerceAtLeast(0f), 0f),
-                                size = Size((endX - startX).coerceAtLeast(0f), size.height),
-                                cornerRadius = CornerRadius(2.dp.toPx()),
-                            )
-                        },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .padding(horizontal = 10.dp)
+                            .drawBehind {
+                                val startX = abStartFraction * size.width
+                                val endX = abEndFraction * size.width
+                                drawRoundRect(
+                                    color = BrandOrange,
+                                    topLeft = Offset(startX.coerceAtLeast(0f), 0f),
+                                    size = Size((endX - startX).coerceAtLeast(0f), size.height),
+                                    cornerRadius = CornerRadius(2.dp.toPx()),
+                                )
+                            },
                 )
             }
 
             Slider(
                 value = fraction,
                 onValueChange = { f -> onSeek((f * durationMs).toLong()) },
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color.White,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.3f),
-                ),
+                colors =
+                    SliderDefaults.colors(
+                        thumbColor = Color.White,
+                        activeTrackColor = Color.White,
+                        inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                    ),
             )
         }
 
@@ -423,10 +428,11 @@ private fun SpeedSelectionSheet(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 32.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             PLAYBACK_SPEEDS.forEach { speed ->

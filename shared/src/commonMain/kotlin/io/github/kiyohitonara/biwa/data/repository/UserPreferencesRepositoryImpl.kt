@@ -21,10 +21,13 @@ class UserPreferencesRepositoryImpl(
         _preferences.value = load()
     }
 
-    private fun load(): UserPreferences = UserPreferences(
-        theme = storage.getString(KEY_THEME, AppTheme.SYSTEM.name)
-            .let { runCatching { AppTheme.valueOf(it) }.getOrDefault(AppTheme.SYSTEM) },
-    )
+    private fun load(): UserPreferences =
+        UserPreferences(
+            theme =
+                storage
+                    .getString(KEY_THEME, AppTheme.SYSTEM.name)
+                    .let { runCatching { AppTheme.valueOf(it) }.getOrDefault(AppTheme.SYSTEM) },
+        )
 
     companion object {
         private const val KEY_THEME = "theme"

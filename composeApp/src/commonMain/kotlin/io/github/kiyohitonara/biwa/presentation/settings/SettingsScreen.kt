@@ -55,9 +55,10 @@ fun SettingsScreen(
         },
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
         ) {
             item {
                 SectionHeader(title = "Appearance")
@@ -106,10 +107,11 @@ private fun SettingsRow(
     onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -129,10 +131,11 @@ private fun ThemeRadioRow(
     onClick: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -141,8 +144,9 @@ private fun ThemeRadioRow(
     }
 }
 
-private fun themeLabel(theme: AppTheme) = when (theme) {
-    AppTheme.SYSTEM -> "System default"
-    AppTheme.LIGHT -> "Light"
-    AppTheme.DARK -> "Dark"
-}
+private fun themeLabel(theme: AppTheme) =
+    when (theme) {
+        AppTheme.SYSTEM -> "System default"
+        AppTheme.LIGHT -> "Light"
+        AppTheme.DARK -> "Dark"
+    }

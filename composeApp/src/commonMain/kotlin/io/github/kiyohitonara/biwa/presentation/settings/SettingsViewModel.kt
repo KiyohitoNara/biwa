@@ -16,20 +16,21 @@ class SettingsViewModel(
     private val getUserPreferencesUseCase: GetUserPreferencesUseCase,
     private val setThemeUseCase: SetThemeUseCase,
 ) : ViewModel() {
-
     /**
      * Current settings state derived from persisted user preferences.
      *
      * Emits immediately on collection. Kept alive for 5 seconds after the
      * last subscriber disappears to survive configuration changes.
      */
-    val uiState: StateFlow<SettingsUiState> = getUserPreferencesUseCase.execute()
-        .map { prefs -> SettingsUiState(theme = prefs.theme) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = SettingsUiState(),
-        )
+    val uiState: StateFlow<SettingsUiState> =
+        getUserPreferencesUseCase
+            .execute()
+            .map { prefs -> SettingsUiState(theme = prefs.theme) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = SettingsUiState(),
+            )
 
     /** Persists [theme] as the app-wide color scheme. */
     fun setTheme(theme: AppTheme) {

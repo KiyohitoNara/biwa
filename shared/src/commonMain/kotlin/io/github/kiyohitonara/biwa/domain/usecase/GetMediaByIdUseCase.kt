@@ -14,7 +14,5 @@ class GetMediaByIdUseCase(
     /**
      * Returns the [MediaItem] with the given [id], or null if not found.
      */
-    suspend fun execute(id: String): MediaItem? {
-        return repository.getMediaById(id)
-    }
+    suspend fun execute(id: String): MediaItem? = repository.getMediaById(id)
 }

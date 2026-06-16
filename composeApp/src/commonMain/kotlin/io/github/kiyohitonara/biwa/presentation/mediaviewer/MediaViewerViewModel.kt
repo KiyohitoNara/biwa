@@ -100,8 +100,9 @@ class MediaViewerViewModel(
                 if (previousItem?.id != newCurrentItem.id) {
                     // The previously-current item was removed (e.g. via delete);
                     // reset the playback fields for whichever item now occupies that slot.
-                    _uiState.value = readyStateFor(items, clampedIndex)
-                        .copy(isToolbarVisible = currentState.isToolbarVisible)
+                    _uiState.value =
+                        readyStateFor(items, clampedIndex)
+                            .copy(isToolbarVisible = currentState.isToolbarVisible)
                 } else {
                     _uiState.value = currentState.copy(items = items, currentIndex = clampedIndex)
                 }
@@ -109,7 +110,10 @@ class MediaViewerViewModel(
         }
     }
 
-    private suspend fun readyStateFor(items: List<MediaItem>, index: Int): MediaViewerUiState.Ready {
+    private suspend fun readyStateFor(
+        items: List<MediaItem>,
+        index: Int,
+    ): MediaViewerUiState.Ready {
         val item = items[index]
         val saved = if (item.isPlayable) getPlaybackStateUseCase.execute(item.id) else null
         return MediaViewerUiState.Ready(
@@ -141,16 +145,17 @@ class MediaViewerViewModel(
             saveCurrentVideoState(state)
             val saved = if (newItem.isPlayable) getPlaybackStateUseCase.execute(newItem.id) else null
             val latestState = _uiState.value as? MediaViewerUiState.Ready ?: return@launch
-            _uiState.value = latestState.copy(
-                currentIndex = index,
-                positionMs = saved?.positionMs ?: 0L,
-                durationMs = newItem.durationMs ?: 0L,
-                isPlaying = false,
-                playbackSpeed = saved?.playbackSpeed ?: 1.0f,
-                abStartMs = saved?.abStartMs,
-                abEndMs = saved?.abEndMs,
-                isControlsVisible = true,
-            )
+            _uiState.value =
+                latestState.copy(
+                    currentIndex = index,
+                    positionMs = saved?.positionMs ?: 0L,
+                    durationMs = newItem.durationMs ?: 0L,
+                    isPlaying = false,
+                    playbackSpeed = saved?.playbackSpeed ?: 1.0f,
+                    abStartMs = saved?.abStartMs,
+                    abEndMs = saved?.abEndMs,
+                    isControlsVisible = true,
+                )
             updateLastViewedAtUseCase.execute(newItem.id)
         }
     }
@@ -197,7 +202,10 @@ class MediaViewerViewModel(
      * On success the range is updated in [uiState]. Emits [abRepeatError] and leaves
      * the existing range unchanged when the resulting range would be invalid (B ≤ A).
      */
-    fun setAbPoint(point: AbPoint, positionMs: Long) {
+    fun setAbPoint(
+        point: AbPoint,
+        positionMs: Long,
+    ) {
         val state = _uiState.value as? MediaViewerUiState.Ready ?: return
         val current = state.items.getOrNull(state.currentIndex) ?: return
         if (!current.isPlayable) return

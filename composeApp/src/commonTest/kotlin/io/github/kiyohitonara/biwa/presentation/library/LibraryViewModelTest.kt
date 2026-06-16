@@ -4,9 +4,9 @@ import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
 import io.github.kiyohitonara.biwa.domain.model.MediaFileMetadata
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
+import io.github.kiyohitonara.biwa.domain.model.SortOrder
 import io.github.kiyohitonara.biwa.domain.model.Tag
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
-import io.github.kiyohitonara.biwa.domain.model.SortOrder
 import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
@@ -71,12 +71,14 @@ class LibraryViewModelTest {
         libraryDisplayState = displayState,
     )
 
-    private fun fakeMetadataExtractor() = object : MediaMetadataExtractor {
-        override suspend fun extract(sourceUri: String) = MediaFileMetadata(
-            fileName = sourceUri.substringAfterLast("/"),
-            mediaType = MediaType.PHOTO,
-        )
-    }
+    private fun fakeMetadataExtractor() =
+        object : MediaMetadataExtractor {
+            override suspend fun extract(sourceUri: String) =
+                MediaFileMetadata(
+                    fileName = sourceUri.substringAfterLast("/"),
+                    mediaType = MediaType.PHOTO,
+                )
+        }
 
     @BeforeTest
     fun setup() {
@@ -99,580 +101,653 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun `uiState becomes Success with empty list when repository emits empty`() = runTest {
-        fakeItems.value = emptyList()
+    fun `uiState becomes Success with empty list when repository emits empty`() =
+        runTest {
+            fakeItems.value = emptyList()
 
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(emptyList(), state.items)
-    }
-
-    @Test
-    fun `uiState Success contains items emitted by repository`() = runTest {
-        fakeItems.value = listOf(videoItem())
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(1, state.items.size)
-        assertEquals("id-1", state.items.first().id)
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(emptyList(), state.items)
+        }
 
     @Test
-    fun `uiState items are ordered by sortOrder ascending`() = runTest {
-        fakeItems.value = listOf(
-            videoItem().copy(id = "second", sortOrder = 1L, filePath = "/media/b.mp4"),
-            videoItem().copy(id = "first", sortOrder = 0L, filePath = "/media/a.mp4"),
-        )
+    fun `uiState Success contains items emitted by repository`() =
+        runTest {
+            fakeItems.value = listOf(videoItem())
 
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(listOf("first", "second"), state.items.map { it.id })
-    }
-
-    @Test
-    fun `displayState mirrors emitted items in order`() = runTest {
-        fakeItems.value = listOf(
-            videoItem().copy(id = "a", sortOrder = 0L, filePath = "/media/a.mp4"),
-            videoItem().copy(id = "b", sortOrder = 1L, filePath = "/media/b.mp4"),
-        )
-
-        // Ensure uiState has emitted before reading the display state.
-        assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(listOf("a", "b"), libraryDisplayState.orderedIds.value)
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(1, state.items.size)
+            assertEquals("id-1", state.items.first().id)
+        }
 
     @Test
-    fun `uiState updates when repository emits new list`() = runTest {
-        fakeItems.value = listOf(videoItem())
-        fakeItems.update { it + videoItem().copy(id = "id-2", filePath = "/media/b.mp4") }
+    fun `uiState items are ordered by sortOrder ascending`() =
+        runTest {
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "second", sortOrder = 1L, filePath = "/media/b.mp4"),
+                    videoItem().copy(id = "first", sortOrder = 0L, filePath = "/media/a.mp4"),
+                )
 
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(2, state.items.size)
-    }
-
-    @Test
-    fun `uiState reflects item removal`() = runTest {
-        fakeItems.value = listOf(videoItem())
-        fakeItems.value = emptyList()
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(emptyList(), state.items)
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(listOf("first", "second"), state.items.map { it.id })
+        }
 
     @Test
-    fun `deleteMedia removes item from uiState`() = runTest {
-        fakeItems.value = listOf(videoItem())
+    fun `displayState mirrors emitted items in order`() =
+        runTest {
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "a", sortOrder = 0L, filePath = "/media/a.mp4"),
+                    videoItem().copy(id = "b", sortOrder = 1L, filePath = "/media/b.mp4"),
+                )
 
-        viewModel.deleteMedia("id-1")
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertTrue(state.items.isEmpty())
-    }
-
-    @Test
-    fun `deleteMedia emits deleteError when use case throws`() = runTest(testDispatcher) {
-        val throwingViewModel = LibraryViewModel(
-            getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
-            deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, throwingFileStorage("delete failed")),
-            getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
-            updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
-            generateThumbnailUseCase = GenerateThumbnailUseCase(fakeThumbnailRepository, fakeRepository),
-            reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
-            getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
-            getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
-            getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
-            reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
-            addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
-            metadataExtractor = fakeMetadataExtractor(),
-            libraryDisplayState = LibraryDisplayState(),
-        )
-        fakeItems.value = listOf(videoItem())
-
-        var receivedError: String? = null
-        val errorJob = launch { throwingViewModel.deleteError.collect { receivedError = it } }
-
-        throwingViewModel.deleteMedia("id-1")
-        errorJob.cancel()
-
-        assertEquals("delete failed", receivedError)
-    }
+            // Ensure uiState has emitted before reading the display state.
+            assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(listOf("a", "b"), libraryDisplayState.orderedIds.value)
+        }
 
     @Test
-    fun `deleteMedia does not affect other items`() = runTest {
-        fakeItems.value = listOf(
-            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
-            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
-        )
+    fun `uiState updates when repository emits new list`() =
+        runTest {
+            fakeItems.value = listOf(videoItem())
+            fakeItems.update { it + videoItem().copy(id = "id-2", filePath = "/media/b.mp4") }
 
-        viewModel.deleteMedia("a")
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(1, state.items.size)
-        assertEquals("b", state.items.first().id)
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(2, state.items.size)
+        }
 
     @Test
-    fun `openMedia emits OpenMediaViewer for VIDEO item`() = runTest(testDispatcher) {
-        fakeItems.value = listOf(videoItem())
+    fun `uiState reflects item removal`() =
+        runTest {
+            fakeItems.value = listOf(videoItem())
+            fakeItems.value = emptyList()
 
-        var received: LibraryNavEffect? = null
-        val job = launch { viewModel.navEffect.collect { received = it } }
-
-        viewModel.openMedia("id-1")
-        job.cancel()
-
-        assertEquals(LibraryNavEffect.OpenMediaViewer("id-1"), received)
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(emptyList(), state.items)
+        }
 
     @Test
-    fun `openMedia emits OpenMediaViewer for GIF item`() = runTest(testDispatcher) {
-        fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.GIF))
+    fun `deleteMedia removes item from uiState`() =
+        runTest {
+            fakeItems.value = listOf(videoItem())
 
-        var received: LibraryNavEffect? = null
-        val job = launch { viewModel.navEffect.collect { received = it } }
+            viewModel.deleteMedia("id-1")
 
-        viewModel.openMedia("id-1")
-        job.cancel()
-
-        assertEquals(LibraryNavEffect.OpenMediaViewer("id-1"), received)
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertTrue(state.items.isEmpty())
+        }
 
     @Test
-    fun `openMedia emits OpenMediaViewer for PHOTO item`() = runTest(testDispatcher) {
-        fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.PHOTO))
+    fun `deleteMedia emits deleteError when use case throws`() =
+        runTest(testDispatcher) {
+            val throwingViewModel =
+                LibraryViewModel(
+                    getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
+                    deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, throwingFileStorage("delete failed")),
+                    getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
+                    updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
+                    generateThumbnailUseCase = GenerateThumbnailUseCase(fakeThumbnailRepository, fakeRepository),
+                    reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
+                    getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
+                    getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
+                    getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
+                    reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
+                    addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
+                    metadataExtractor = fakeMetadataExtractor(),
+                    libraryDisplayState = LibraryDisplayState(),
+                )
+            fakeItems.value = listOf(videoItem())
 
-        var received: LibraryNavEffect? = null
-        val job = launch { viewModel.navEffect.collect { received = it } }
+            var receivedError: String? = null
+            val errorJob = launch { throwingViewModel.deleteError.collect { receivedError = it } }
 
-        viewModel.openMedia("id-1")
-        job.cancel()
+            throwingViewModel.deleteMedia("id-1")
+            errorJob.cancel()
 
-        assertEquals(LibraryNavEffect.OpenMediaViewer("id-1"), received)
-    }
+            assertEquals("delete failed", receivedError)
+        }
 
     @Test
-    fun `openMedia does nothing when item not found`() = runTest(testDispatcher) {
-        var received: LibraryNavEffect? = null
-        val job = launch { viewModel.navEffect.collect { received = it } }
+    fun `deleteMedia does not affect other items`() =
+        runTest {
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+                    videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+                )
 
-        viewModel.openMedia("nonexistent")
-        job.cancel()
+            viewModel.deleteMedia("a")
 
-        assertEquals(null, received)
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(1, state.items.size)
+            assertEquals("b", state.items.first().id)
+        }
 
     @Test
-    fun `openMedia records lastViewedAt timestamp`() = runTest(testDispatcher) {
-        fakeItems.value = listOf(videoItem())
+    fun `openMedia emits OpenMediaViewer for VIDEO item`() =
+        runTest(testDispatcher) {
+            fakeItems.value = listOf(videoItem())
 
-        viewModel.openMedia("id-1")
+            var received: LibraryNavEffect? = null
+            val job = launch { viewModel.navEffect.collect { received = it } }
 
-        assertTrue(fakeRepository.lastViewedAtUpdates.any { it.first == "id-1" })
-    }
+            viewModel.openMedia("id-1")
+            job.cancel()
+
+            assertEquals(LibraryNavEffect.OpenMediaViewer("id-1"), received)
+        }
+
+    @Test
+    fun `openMedia emits OpenMediaViewer for GIF item`() =
+        runTest(testDispatcher) {
+            fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.GIF))
+
+            var received: LibraryNavEffect? = null
+            val job = launch { viewModel.navEffect.collect { received = it } }
+
+            viewModel.openMedia("id-1")
+            job.cancel()
+
+            assertEquals(LibraryNavEffect.OpenMediaViewer("id-1"), received)
+        }
+
+    @Test
+    fun `openMedia emits OpenMediaViewer for PHOTO item`() =
+        runTest(testDispatcher) {
+            fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.PHOTO))
+
+            var received: LibraryNavEffect? = null
+            val job = launch { viewModel.navEffect.collect { received = it } }
+
+            viewModel.openMedia("id-1")
+            job.cancel()
+
+            assertEquals(LibraryNavEffect.OpenMediaViewer("id-1"), received)
+        }
+
+    @Test
+    fun `openMedia does nothing when item not found`() =
+        runTest(testDispatcher) {
+            var received: LibraryNavEffect? = null
+            val job = launch { viewModel.navEffect.collect { received = it } }
+
+            viewModel.openMedia("nonexistent")
+            job.cancel()
+
+            assertEquals(null, received)
+        }
+
+    @Test
+    fun `openMedia records lastViewedAt timestamp`() =
+        runTest(testDispatcher) {
+            fakeItems.value = listOf(videoItem())
+
+            viewModel.openMedia("id-1")
+
+            assertTrue(fakeRepository.lastViewedAtUpdates.any { it.first == "id-1" })
+        }
 
     // ── Apply-once sort actions ──────────────────────────────────────────────
 
     @Test
-    fun `setSortOrder ADDED_AT_DESC persists new order with newest first`() = runTest {
-        fakeItems.value = listOf(
-            videoItem().copy(id = "old", addedAt = 1_000L, sortOrder = 0L),
-            videoItem().copy(id = "new", addedAt = 2_000L, sortOrder = 1L),
-        )
+    fun `setSortOrder ADDED_AT_DESC persists new order with newest first`() =
+        runTest {
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "old", addedAt = 1_000L, sortOrder = 0L),
+                    videoItem().copy(id = "new", addedAt = 2_000L, sortOrder = 1L),
+                )
 
-        viewModel.setSortOrder(SortOrder.ADDED_AT_DESC)
+            viewModel.setSortOrder(SortOrder.ADDED_AT_DESC)
 
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(listOf("new", "old"), state.items.map { it.id })
-    }
-
-    @Test
-    fun `setSortOrder ADDED_AT_ASC persists new order with oldest first`() = runTest {
-        fakeItems.value = listOf(
-            videoItem().copy(id = "new", addedAt = 2_000L, sortOrder = 0L),
-            videoItem().copy(id = "old", addedAt = 1_000L, sortOrder = 1L),
-        )
-
-        viewModel.setSortOrder(SortOrder.ADDED_AT_ASC)
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(listOf("old", "new"), state.items.map { it.id })
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(listOf("new", "old"), state.items.map { it.id })
+        }
 
     @Test
-    fun `setSortOrder FILE_NAME persists alphabetical order`() = runTest {
-        fakeItems.value = listOf(
-            videoItem().copy(id = "b", displayName = "banana.mp4", sortOrder = 0L),
-            videoItem().copy(id = "a", displayName = "apple.mp4", sortOrder = 1L),
-        )
+    fun `setSortOrder ADDED_AT_ASC persists new order with oldest first`() =
+        runTest {
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "new", addedAt = 2_000L, sortOrder = 0L),
+                    videoItem().copy(id = "old", addedAt = 1_000L, sortOrder = 1L),
+                )
 
-        viewModel.setSortOrder(SortOrder.FILE_NAME)
+            viewModel.setSortOrder(SortOrder.ADDED_AT_ASC)
 
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(listOf("a", "b"), state.items.map { it.id })
-    }
-
-    @Test
-    fun `setSortOrder FILE_SIZE persists order with largest first`() = runTest {
-        fakeItems.value = listOf(
-            videoItem().copy(id = "small", fileSizeBytes = 1_000L, sortOrder = 0L),
-            videoItem().copy(id = "large", fileSizeBytes = 9_000L, sortOrder = 1L),
-        )
-
-        viewModel.setSortOrder(SortOrder.FILE_SIZE)
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(listOf("large", "small"), state.items.map { it.id })
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(listOf("old", "new"), state.items.map { it.id })
+        }
 
     @Test
-    fun `setSortOrder writes ordered indices via the reorder use case`() = runTest {
-        fakeItems.value = listOf(
-            videoItem().copy(id = "b", displayName = "b.mp4", sortOrder = 0L),
-            videoItem().copy(id = "a", displayName = "a.mp4", sortOrder = 1L),
-        )
+    fun `setSortOrder FILE_NAME persists alphabetical order`() =
+        runTest {
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "b", displayName = "banana.mp4", sortOrder = 0L),
+                    videoItem().copy(id = "a", displayName = "apple.mp4", sortOrder = 1L),
+                )
 
-        viewModel.setSortOrder(SortOrder.FILE_NAME)
+            viewModel.setSortOrder(SortOrder.FILE_NAME)
 
-        val finalOrders = fakeRepository.sortOrderUpdates
-            .groupBy({ it.first }, { it.second })
-            .mapValues { it.value.last() }
-        assertEquals(0L, finalOrders["a"])
-        assertEquals(1L, finalOrders["b"])
-    }
-
-    @Test
-    fun `setSortOrder is a no-op when multiple tag filters are active`() = runTest {
-        fakeTagRepository.tags.value = listOf(
-            Tag("t1", "Nature", 0L),
-            Tag("t2", "Travel", 0L),
-        )
-        fakeItems.value = listOf(
-            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
-            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
-        )
-        fakeTagRepository.addTagToMedia("a", "t1")
-        fakeTagRepository.addTagToMedia("a", "t2")
-        viewModel.toggleTag("t1")
-        viewModel.toggleTag("t2")
-
-        viewModel.setSortOrder(SortOrder.FILE_NAME)
-
-        assertTrue(fakeRepository.sortOrderUpdates.isEmpty())
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(listOf("a", "b"), state.items.map { it.id })
+        }
 
     @Test
-    fun `setSortOrder with single active tag persists tag-specific order`() = runTest {
-        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
-        fakeItems.value = listOf(
-            videoItem().copy(id = "b", displayName = "b.mp4", filePath = "/media/b.mp4"),
-            videoItem().copy(id = "a", displayName = "a.mp4", filePath = "/media/a.mp4"),
-        )
-        fakeTagRepository.addTagToMedia("a", "t1")
-        fakeTagRepository.addTagToMedia("b", "t1")
-        viewModel.toggleTag("t1")
+    fun `setSortOrder FILE_SIZE persists order with largest first`() =
+        runTest {
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "small", fileSizeBytes = 1_000L, sortOrder = 0L),
+                    videoItem().copy(id = "large", fileSizeBytes = 9_000L, sortOrder = 1L),
+                )
 
-        viewModel.setSortOrder(SortOrder.FILE_NAME)
+            viewModel.setSortOrder(SortOrder.FILE_SIZE)
 
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(listOf("a", "b"), state.items.map { it.id })
-        // Global sort order should not be touched when reordering a tagged subset.
-        assertTrue(fakeRepository.sortOrderUpdates.isEmpty())
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(listOf("large", "small"), state.items.map { it.id })
+        }
+
+    @Test
+    fun `setSortOrder writes ordered indices via the reorder use case`() =
+        runTest {
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "b", displayName = "b.mp4", sortOrder = 0L),
+                    videoItem().copy(id = "a", displayName = "a.mp4", sortOrder = 1L),
+                )
+
+            viewModel.setSortOrder(SortOrder.FILE_NAME)
+
+            val finalOrders =
+                fakeRepository.sortOrderUpdates
+                    .groupBy({ it.first }, { it.second })
+                    .mapValues { it.value.last() }
+            assertEquals(0L, finalOrders["a"])
+            assertEquals(1L, finalOrders["b"])
+        }
+
+    @Test
+    fun `setSortOrder is a no-op when multiple tag filters are active`() =
+        runTest {
+            fakeTagRepository.tags.value =
+                listOf(
+                    Tag("t1", "Nature", 0L),
+                    Tag("t2", "Travel", 0L),
+                )
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+                    videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+                )
+            fakeTagRepository.addTagToMedia("a", "t1")
+            fakeTagRepository.addTagToMedia("a", "t2")
+            viewModel.toggleTag("t1")
+            viewModel.toggleTag("t2")
+
+            viewModel.setSortOrder(SortOrder.FILE_NAME)
+
+            assertTrue(fakeRepository.sortOrderUpdates.isEmpty())
+        }
+
+    @Test
+    fun `setSortOrder with single active tag persists tag-specific order`() =
+        runTest {
+            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "b", displayName = "b.mp4", filePath = "/media/b.mp4"),
+                    videoItem().copy(id = "a", displayName = "a.mp4", filePath = "/media/a.mp4"),
+                )
+            fakeTagRepository.addTagToMedia("a", "t1")
+            fakeTagRepository.addTagToMedia("b", "t1")
+            viewModel.toggleTag("t1")
+
+            viewModel.setSortOrder(SortOrder.FILE_NAME)
+
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(listOf("a", "b"), state.items.map { it.id })
+            // Global sort order should not be touched when reordering a tagged subset.
+            assertTrue(fakeRepository.sortOrderUpdates.isEmpty())
+        }
 
     // ── Manual reorder ────────────────────────────────────────────────────────
 
     @Test
-    fun `reorderMedia persists new order via use case`() = runTest {
-        fakeItems.value = listOf(
-            videoItem().copy(id = "a", sortOrder = 0L),
-            videoItem().copy(id = "b", sortOrder = 1L),
-            videoItem().copy(id = "c", sortOrder = 2L),
-        )
+    fun `reorderMedia persists new order via use case`() =
+        runTest {
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "a", sortOrder = 0L),
+                    videoItem().copy(id = "b", sortOrder = 1L),
+                    videoItem().copy(id = "c", sortOrder = 2L),
+                )
 
-        viewModel.reorderMedia(fromIndex = 0, toIndex = 2)
+            viewModel.reorderMedia(fromIndex = 0, toIndex = 2)
 
-        // After moving "a" to index 2, order is b, c, a → sort_orders 0, 1, 2 assigned
-        val ids = fakeRepository.sortOrderUpdates
-            .groupBy({ it.first }, { it.second })
-            .mapValues { it.value.last() }
-        assertEquals(0L, ids["b"])
-        assertEquals(1L, ids["c"])
-        assertEquals(2L, ids["a"])
-    }
-
-    @Test
-    fun `reorderMedia with single active tag persists tag-specific order`() = runTest {
-        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
-        fakeItems.value = listOf(
-            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
-            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
-            videoItem().copy(id = "c", filePath = "/media/c.mp4"),
-        )
-        fakeTagRepository.addTagToMedia("a", "t1")
-        fakeTagRepository.addTagToMedia("b", "t1")
-        fakeTagRepository.addTagToMedia("c", "t1")
-        viewModel.toggleTag("t1")
-
-        // Move "a" (index 0) to index 2 → expected order: b, c, a
-        viewModel.reorderMedia(fromIndex = 0, toIndex = 2)
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(listOf("b", "c", "a"), state.items.map { it.id })
-    }
+            // After moving "a" to index 2, order is b, c, a → sort_orders 0, 1, 2 assigned
+            val ids =
+                fakeRepository.sortOrderUpdates
+                    .groupBy({ it.first }, { it.second })
+                    .mapValues { it.value.last() }
+            assertEquals(0L, ids["b"])
+            assertEquals(1L, ids["c"])
+            assertEquals(2L, ids["a"])
+        }
 
     @Test
-    fun `reorderMedia with single tag does not affect global sort order`() = runTest {
-        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
-        fakeItems.value = listOf(
-            videoItem().copy(id = "a", sortOrder = 0L, filePath = "/media/a.mp4"),
-            videoItem().copy(id = "b", sortOrder = 1L, filePath = "/media/b.mp4"),
-        )
-        fakeTagRepository.addTagToMedia("a", "t1")
-        fakeTagRepository.addTagToMedia("b", "t1")
-        viewModel.toggleTag("t1")
+    fun `reorderMedia with single active tag persists tag-specific order`() =
+        runTest {
+            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+                    videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+                    videoItem().copy(id = "c", filePath = "/media/c.mp4"),
+                )
+            fakeTagRepository.addTagToMedia("a", "t1")
+            fakeTagRepository.addTagToMedia("b", "t1")
+            fakeTagRepository.addTagToMedia("c", "t1")
+            viewModel.toggleTag("t1")
 
-        viewModel.reorderMedia(fromIndex = 0, toIndex = 1)
+            // Move "a" (index 0) to index 2 → expected order: b, c, a
+            viewModel.reorderMedia(fromIndex = 0, toIndex = 2)
 
-        // Global sort order (sortOrder field) should be unchanged
-        val globalOrder = fakeRepository.sortOrderUpdates
-        assertTrue(globalOrder.isEmpty())
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(listOf("b", "c", "a"), state.items.map { it.id })
+        }
 
     @Test
-    fun `single tag manual order is preserved when toggling off and on again`() = runTest {
-        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
-        fakeItems.value = listOf(
-            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
-            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
-        )
-        fakeTagRepository.addTagToMedia("a", "t1")
-        fakeTagRepository.addTagToMedia("b", "t1")
-        viewModel.toggleTag("t1")
-        viewModel.reorderMedia(fromIndex = 0, toIndex = 1) // b, a
+    fun `reorderMedia with single tag does not affect global sort order`() =
+        runTest {
+            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "a", sortOrder = 0L, filePath = "/media/a.mp4"),
+                    videoItem().copy(id = "b", sortOrder = 1L, filePath = "/media/b.mp4"),
+                )
+            fakeTagRepository.addTagToMedia("a", "t1")
+            fakeTagRepository.addTagToMedia("b", "t1")
+            viewModel.toggleTag("t1")
 
-        // Toggle off then on again
-        viewModel.toggleTag("t1")
-        viewModel.toggleTag("t1")
+            viewModel.reorderMedia(fromIndex = 0, toIndex = 1)
 
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(listOf("b", "a"), state.items.map { it.id })
-    }
+            // Global sort order (sortOrder field) should be unchanged
+            val globalOrder = fakeRepository.sortOrderUpdates
+            assertTrue(globalOrder.isEmpty())
+        }
+
+    @Test
+    fun `single tag manual order is preserved when toggling off and on again`() =
+        runTest {
+            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+                    videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+                )
+            fakeTagRepository.addTagToMedia("a", "t1")
+            fakeTagRepository.addTagToMedia("b", "t1")
+            viewModel.toggleTag("t1")
+            viewModel.reorderMedia(fromIndex = 0, toIndex = 1) // b, a
+
+            // Toggle off then on again
+            viewModel.toggleTag("t1")
+            viewModel.toggleTag("t1")
+
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(listOf("b", "a"), state.items.map { it.id })
+        }
 
     // ── Thumbnail generation ──────────────────────────────────────────────────
 
     @Test
-    fun `thumbnail generation is triggered for VIDEO without thumbnail`() = runTest {
-        fakeItems.value = listOf(videoItem())
-        val thumbnailRepository = FakeThumbnailRepository()
-        val vm = buildViewModel(thumbnailRepository = thumbnailRepository)
-        // Activate uiState subscription to start the generator coroutine
-        CoroutineScope(testDispatcher).launch { vm.uiState.collect() }.cancel()
+    fun `thumbnail generation is triggered for VIDEO without thumbnail`() =
+        runTest {
+            fakeItems.value = listOf(videoItem())
+            val thumbnailRepository = FakeThumbnailRepository()
+            val vm = buildViewModel(thumbnailRepository = thumbnailRepository)
+            // Activate uiState subscription to start the generator coroutine
+            CoroutineScope(testDispatcher).launch { vm.uiState.collect() }.cancel()
 
-        assertTrue(thumbnailRepository.generatedPaths.contains(videoItem().filePath))
-    }
-
-    @Test
-    fun `thumbnail generation is not triggered for VIDEO with existing thumbnail`() = runTest {
-        fakeItems.value = listOf(videoItem().copy(thumbnailPath = "/cache/existing.jpg"))
-        val thumbnailRepository = FakeThumbnailRepository()
-        buildViewModel(thumbnailRepository = thumbnailRepository)
-
-        assertTrue(thumbnailRepository.generatedPaths.isEmpty())
-    }
+            assertTrue(thumbnailRepository.generatedPaths.contains(videoItem().filePath))
+        }
 
     @Test
-    fun `thumbnail generation is not triggered for PHOTO items`() = runTest {
-        fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.PHOTO))
-        val thumbnailRepository = FakeThumbnailRepository()
-        buildViewModel(thumbnailRepository = thumbnailRepository)
+    fun `thumbnail generation is not triggered for VIDEO with existing thumbnail`() =
+        runTest {
+            fakeItems.value = listOf(videoItem().copy(thumbnailPath = "/cache/existing.jpg"))
+            val thumbnailRepository = FakeThumbnailRepository()
+            buildViewModel(thumbnailRepository = thumbnailRepository)
 
-        assertTrue(thumbnailRepository.generatedPaths.isEmpty())
-    }
+            assertTrue(thumbnailRepository.generatedPaths.isEmpty())
+        }
 
     @Test
-    fun `thumbnail generation is not repeated for same VIDEO across emissions`() = runTest {
-        fakeItems.value = listOf(videoItem())
-        val thumbnailRepository = FakeThumbnailRepository()
-        buildViewModel(thumbnailRepository = thumbnailRepository)
+    fun `thumbnail generation is not triggered for PHOTO items`() =
+        runTest {
+            fakeItems.value = listOf(videoItem().copy(mediaType = MediaType.PHOTO))
+            val thumbnailRepository = FakeThumbnailRepository()
+            buildViewModel(thumbnailRepository = thumbnailRepository)
 
-        // Second emission of the same item
-        fakeItems.value = listOf(videoItem())
+            assertTrue(thumbnailRepository.generatedPaths.isEmpty())
+        }
 
-        assertEquals(1, thumbnailRepository.generatedPaths.size)
-    }
+    @Test
+    fun `thumbnail generation is not repeated for same VIDEO across emissions`() =
+        runTest {
+            fakeItems.value = listOf(videoItem())
+            val thumbnailRepository = FakeThumbnailRepository()
+            buildViewModel(thumbnailRepository = thumbnailRepository)
+
+            // Second emission of the same item
+            fakeItems.value = listOf(videoItem())
+
+            assertEquals(1, thumbnailRepository.generatedPaths.size)
+        }
 
     // ── Tag filter ────────────────────────────────────────────────────────────
 
     @Test
-    fun `uiState exposes availableTags from repository`() = runTest {
-        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+    fun `uiState exposes availableTags from repository`() =
+        runTest {
+            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
 
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(1, state.availableTags.size)
-        assertEquals("Nature", state.availableTags.first().name)
-    }
-
-    @Test
-    fun `toggleTag adds tag to activeTagIds`() = runTest {
-        viewModel.toggleTag("t1")
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertTrue(state.activeTagIds.contains("t1"))
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(1, state.availableTags.size)
+            assertEquals("Nature", state.availableTags.first().name)
+        }
 
     @Test
-    fun `toggleTag removes tag when already active`() = runTest {
-        viewModel.toggleTag("t1")
-        viewModel.toggleTag("t1")
+    fun `toggleTag adds tag to activeTagIds`() =
+        runTest {
+            viewModel.toggleTag("t1")
 
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertTrue(state.activeTagIds.isEmpty())
-    }
-
-    @Test
-    fun `toggleTag filters items by active tag`() = runTest {
-        fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
-        fakeItems.value = listOf(
-            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
-            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
-        )
-        fakeTagRepository.addTagToMedia("a", "t1")
-
-        viewModel.toggleTag("t1")
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(1, state.items.size)
-        assertEquals("a", state.items.first().id)
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertTrue(state.activeTagIds.contains("t1"))
+        }
 
     @Test
-    fun `toggleTag with multiple tags applies AND logic`() = runTest {
-        fakeTagRepository.tags.value = listOf(
-            Tag("t1", "Nature", 0L),
-            Tag("t2", "Travel", 0L),
-        )
-        fakeItems.value = listOf(
-            videoItem().copy(id = "both", filePath = "/media/both.mp4"),
-            videoItem().copy(id = "one", filePath = "/media/one.mp4"),
-        )
-        fakeTagRepository.addTagToMedia("both", "t1")
-        fakeTagRepository.addTagToMedia("both", "t2")
-        fakeTagRepository.addTagToMedia("one", "t1")
+    fun `toggleTag removes tag when already active`() =
+        runTest {
+            viewModel.toggleTag("t1")
+            viewModel.toggleTag("t1")
 
-        viewModel.toggleTag("t1")
-        viewModel.toggleTag("t2")
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(1, state.items.size)
-        assertEquals("both", state.items.first().id)
-    }
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertTrue(state.activeTagIds.isEmpty())
+        }
 
     @Test
-    fun `clearing all active tags shows all items`() = runTest {
-        fakeItems.value = listOf(
-            videoItem().copy(id = "a", filePath = "/media/a.mp4"),
-            videoItem().copy(id = "b", filePath = "/media/b.mp4"),
-        )
-        fakeTagRepository.addTagToMedia("a", "t1")
-
-        viewModel.toggleTag("t1")
-        viewModel.toggleTag("t1")
-
-        val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-        assertEquals(2, state.items.size)
-    }
-
-    @Test
-    fun `addMedia is no-op on empty list`() = runTest {
-        viewModel.addMedia(emptyList())
-
-        assertEquals(false, viewModel.isAdding.value)
-    }
-
-    @Test
-    fun `addMedia resets isAdding to false after completion`() = runTest(testDispatcher) {
-        viewModel.addMedia(listOf("content://media/a.jpg"))
-
-        assertEquals(false, viewModel.isAdding.value)
-    }
-
-    @Test
-    fun `addMedia inserts items into repository on success`() = runTest(testDispatcher) {
-        viewModel.addMedia(listOf("content://media/a.jpg", "content://media/b.jpg"))
-
-        assertEquals(2, fakeRepository.getAllMedia().first().size)
-    }
-
-    @Test
-    fun `addMedia emits addMediaError summary on partial failure`() = runTest(testDispatcher) {
-        val partialExtractor = object : MediaMetadataExtractor {
-            override suspend fun extract(sourceUri: String): MediaFileMetadata {
-                if (sourceUri.endsWith("bad.jpg")) error("bad file")
-                return MediaFileMetadata(
-                    fileName = sourceUri.substringAfterLast("/"),
-                    mediaType = MediaType.PHOTO,
+    fun `toggleTag filters items by active tag`() =
+        runTest {
+            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+                    videoItem().copy(id = "b", filePath = "/media/b.mp4"),
                 )
+            fakeTagRepository.addTagToMedia("a", "t1")
+
+            viewModel.toggleTag("t1")
+
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(1, state.items.size)
+            assertEquals("a", state.items.first().id)
+        }
+
+    @Test
+    fun `toggleTag with multiple tags applies AND logic`() =
+        runTest {
+            fakeTagRepository.tags.value =
+                listOf(
+                    Tag("t1", "Nature", 0L),
+                    Tag("t2", "Travel", 0L),
+                )
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "both", filePath = "/media/both.mp4"),
+                    videoItem().copy(id = "one", filePath = "/media/one.mp4"),
+                )
+            fakeTagRepository.addTagToMedia("both", "t1")
+            fakeTagRepository.addTagToMedia("both", "t2")
+            fakeTagRepository.addTagToMedia("one", "t1")
+
+            viewModel.toggleTag("t1")
+            viewModel.toggleTag("t2")
+
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(1, state.items.size)
+            assertEquals("both", state.items.first().id)
+        }
+
+    @Test
+    fun `clearing all active tags shows all items`() =
+        runTest {
+            fakeItems.value =
+                listOf(
+                    videoItem().copy(id = "a", filePath = "/media/a.mp4"),
+                    videoItem().copy(id = "b", filePath = "/media/b.mp4"),
+                )
+            fakeTagRepository.addTagToMedia("a", "t1")
+
+            viewModel.toggleTag("t1")
+            viewModel.toggleTag("t1")
+
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(2, state.items.size)
+        }
+
+    @Test
+    fun `addMedia is no-op on empty list`() =
+        runTest {
+            viewModel.addMedia(emptyList())
+
+            assertEquals(false, viewModel.isAdding.value)
+        }
+
+    @Test
+    fun `addMedia resets isAdding to false after completion`() =
+        runTest(testDispatcher) {
+            viewModel.addMedia(listOf("content://media/a.jpg"))
+
+            assertEquals(false, viewModel.isAdding.value)
+        }
+
+    @Test
+    fun `addMedia inserts items into repository on success`() =
+        runTest(testDispatcher) {
+            viewModel.addMedia(listOf("content://media/a.jpg", "content://media/b.jpg"))
+
+            assertEquals(2, fakeRepository.getAllMedia().first().size)
+        }
+
+    @Test
+    fun `addMedia emits addMediaError summary on partial failure`() =
+        runTest(testDispatcher) {
+            val partialExtractor =
+                object : MediaMetadataExtractor {
+                    override suspend fun extract(sourceUri: String): MediaFileMetadata {
+                        if (sourceUri.endsWith("bad.jpg")) error("bad file")
+                        return MediaFileMetadata(
+                            fileName = sourceUri.substringAfterLast("/"),
+                            mediaType = MediaType.PHOTO,
+                        )
+                    }
+                }
+            val partialViewModel =
+                LibraryViewModel(
+                    getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
+                    deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage()),
+                    getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
+                    updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
+                    generateThumbnailUseCase = GenerateThumbnailUseCase(fakeThumbnailRepository, fakeRepository),
+                    reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
+                    getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
+                    getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
+                    getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
+                    reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
+                    addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
+                    metadataExtractor = partialExtractor,
+                    libraryDisplayState = LibraryDisplayState(),
+                )
+            var received: String? = null
+            val job = launch { partialViewModel.addMediaError.collect { received = it } }
+
+            partialViewModel.addMedia(listOf("content://media/good.jpg", "content://media/bad.jpg"))
+            job.cancel()
+
+            assertEquals("Added 1, failed 1", received)
+        }
+
+    @Test
+    fun `addMedia does not emit addMediaError when all succeed`() =
+        runTest(testDispatcher) {
+            var received: String? = null
+            val job = launch { viewModel.addMediaError.collect { received = it } }
+
+            viewModel.addMedia(listOf("content://media/a.jpg"))
+            job.cancel()
+
+            assertEquals(null, received)
+        }
+
+    private fun fakeFileStorage() =
+        object : FileStorage {
+            override suspend fun copyToInternalStorage(
+                sourceUri: String,
+                fileName: String,
+            ) = "/internal/media/$fileName"
+
+            override suspend fun deleteFromInternalStorage(filePath: String) {}
+        }
+
+    private fun throwingFileStorage(message: String) =
+        object : FileStorage {
+            override suspend fun copyToInternalStorage(
+                sourceUri: String,
+                fileName: String,
+            ) = "/internal/media/$fileName"
+
+            override suspend fun deleteFromInternalStorage(filePath: String) {
+                error(message)
             }
         }
-        val partialViewModel = LibraryViewModel(
-            getAllMediaUseCase = GetAllMediaUseCase(fakeRepository),
-            deleteMediaUseCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage()),
-            getMediaByIdUseCase = GetMediaByIdUseCase(fakeRepository),
-            updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
-            generateThumbnailUseCase = GenerateThumbnailUseCase(fakeThumbnailRepository, fakeRepository),
-            reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
-            getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
-            getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
-            getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
-            reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
-            addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
-            metadataExtractor = partialExtractor,
-            libraryDisplayState = LibraryDisplayState(),
+
+    private fun videoItem() =
+        MediaItem(
+            id = "id-1",
+            filePath = "/internal/media/sample.mp4",
+            mediaType = MediaType.VIDEO,
+            displayName = "sample.mp4",
+            durationMs = 30_000L,
+            widthPx = 1920L,
+            heightPx = 1080L,
+            fileSizeBytes = 10_000_000L,
+            thumbnailPath = null,
+            takenAt = null,
+            sortOrder = 0L,
+            lastViewedAt = null,
+            addedAt = 1_700_000_000L,
         )
-        var received: String? = null
-        val job = launch { partialViewModel.addMediaError.collect { received = it } }
-
-        partialViewModel.addMedia(listOf("content://media/good.jpg", "content://media/bad.jpg"))
-        job.cancel()
-
-        assertEquals("Added 1, failed 1", received)
-    }
-
-    @Test
-    fun `addMedia does not emit addMediaError when all succeed`() = runTest(testDispatcher) {
-        var received: String? = null
-        val job = launch { viewModel.addMediaError.collect { received = it } }
-
-        viewModel.addMedia(listOf("content://media/a.jpg"))
-        job.cancel()
-
-        assertEquals(null, received)
-    }
-
-    private fun fakeFileStorage() = object : FileStorage {
-        override suspend fun copyToInternalStorage(sourceUri: String, fileName: String) =
-            "/internal/media/$fileName"
-        override suspend fun deleteFromInternalStorage(filePath: String) {}
-    }
-
-    private fun throwingFileStorage(message: String) = object : FileStorage {
-        override suspend fun copyToInternalStorage(sourceUri: String, fileName: String) =
-            "/internal/media/$fileName"
-        override suspend fun deleteFromInternalStorage(filePath: String) {
-            error(message)
-        }
-    }
-
-    private fun videoItem() = MediaItem(
-        id = "id-1",
-        filePath = "/internal/media/sample.mp4",
-        mediaType = MediaType.VIDEO,
-        displayName = "sample.mp4",
-        durationMs = 30_000L,
-        widthPx = 1920L,
-        heightPx = 1080L,
-        fileSizeBytes = 10_000_000L,
-        thumbnailPath = null,
-        takenAt = null,
-        sortOrder = 0L,
-        lastViewedAt = null,
-        addedAt = 1_700_000_000L,
-    )
 }

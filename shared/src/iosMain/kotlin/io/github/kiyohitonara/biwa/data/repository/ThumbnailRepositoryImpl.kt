@@ -28,19 +28,24 @@ class ThumbnailRepositoryImpl : ThumbnailRepository {
                 generator.appliesPreferredTrackTransform = true
 
                 val time = CMTimeMake(value = 1, timescale = 1)
-                val cgImage = generator.copyCGImageAtTime(
-                    requestedTime = time,
-                    actualTime = null,
-                    error = null,
-                ) ?: return@withContext null
+                val cgImage =
+                    generator.copyCGImageAtTime(
+                        requestedTime = time,
+                        actualTime = null,
+                        error = null,
+                    ) ?: return@withContext null
 
                 val uiImage = UIImage.imageWithCGImage(cgImage)
-                val jpegData = UIImageJPEGRepresentation(uiImage, 0.8)
-                    ?: return@withContext null
+                val jpegData =
+                    UIImageJPEGRepresentation(uiImage, 0.8)
+                        ?: return@withContext null
 
-                val cachesDir = NSSearchPathForDirectoriesInDomains(
-                    NSCachesDirectory, NSUserDomainMask, true
-                ).first() as String
+                val cachesDir =
+                    NSSearchPathForDirectoriesInDomains(
+                        NSCachesDirectory,
+                        NSUserDomainMask,
+                        true,
+                    ).first() as String
                 val thumbnailsDir = "$cachesDir/thumbnails"
                 NSFileManager.defaultManager.createDirectoryAtPath(
                     path = thumbnailsDir,

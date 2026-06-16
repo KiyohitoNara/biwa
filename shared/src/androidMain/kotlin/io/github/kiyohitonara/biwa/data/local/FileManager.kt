@@ -8,8 +8,13 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Android implementation that reads via [ContentResolver] and writes to [Context.filesDir]. */
-actual class FileManager(private val context: Context) : FileStorage {
-    actual override suspend fun copyToInternalStorage(sourceUri: String, fileName: String): String =
+actual class FileManager(
+    private val context: Context,
+) : FileStorage {
+    actual override suspend fun copyToInternalStorage(
+        sourceUri: String,
+        fileName: String,
+    ): String =
         withContext(Dispatchers.IO) {
             val mediaDir = File(context.filesDir, MEDIA_DIR).also { it.mkdirs() }
             val destFile = uniqueFile(mediaDir, fileName)
@@ -28,7 +33,10 @@ actual class FileManager(private val context: Context) : FileStorage {
             Unit
         }
 
-    private fun uniqueFile(dir: File, fileName: String): File {
+    private fun uniqueFile(
+        dir: File,
+        fileName: String,
+    ): File {
         val base = fileName.substringBeforeLast(".")
         val ext = fileName.substringAfterLast(".", "")
         val extSuffix = if (ext.isNotEmpty()) ".$ext" else ""

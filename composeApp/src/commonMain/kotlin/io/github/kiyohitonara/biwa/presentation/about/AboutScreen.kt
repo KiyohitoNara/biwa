@@ -24,20 +24,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-private data class LicenseEntry(val library: String, val license: String)
-
-private val licenses = listOf(
-    LicenseEntry("Kotlin", "Apache License 2.0"),
-    LicenseEntry("Kotlin Coroutines", "Apache License 2.0"),
-    LicenseEntry("Compose Multiplatform", "Apache License 2.0"),
-    LicenseEntry("AndroidX Lifecycle", "Apache License 2.0"),
-    LicenseEntry("AndroidX Navigation", "Apache License 2.0"),
-    LicenseEntry("Koin", "Apache License 2.0"),
-    LicenseEntry("Coil", "Apache License 2.0"),
-    LicenseEntry("SQLDelight", "Apache License 2.0"),
-    LicenseEntry("Media3 ExoPlayer", "Apache License 2.0"),
-    LicenseEntry("AndroidX ExifInterface", "Apache License 2.0"),
+private data class LicenseEntry(
+    val library: String,
+    val license: String,
 )
+
+private val licenses =
+    listOf(
+        LicenseEntry("Kotlin", "Apache License 2.0"),
+        LicenseEntry("Kotlin Coroutines", "Apache License 2.0"),
+        LicenseEntry("Compose Multiplatform", "Apache License 2.0"),
+        LicenseEntry("AndroidX Lifecycle", "Apache License 2.0"),
+        LicenseEntry("AndroidX Navigation", "Apache License 2.0"),
+        LicenseEntry("Koin", "Apache License 2.0"),
+        LicenseEntry("Coil", "Apache License 2.0"),
+        LicenseEntry("SQLDelight", "Apache License 2.0"),
+        LicenseEntry("Media3 ExoPlayer", "Apache License 2.0"),
+        LicenseEntry("AndroidX ExifInterface", "Apache License 2.0"),
+    )
 
 /** Screen that displays app information and OSS license acknowledgements. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,9 +63,10 @@ fun AboutScreen(onBack: () -> Unit) {
         },
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
         ) {
             item {
                 AppInfoSection()
@@ -94,9 +99,10 @@ fun AboutScreen(onBack: () -> Unit) {
 @Composable
 private fun AppInfoSection() {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -134,9 +140,10 @@ private fun SectionHeader(title: String) {
 @Composable
 private fun LicenseRow(entry: LicenseEntry) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(text = entry.library, style = MaterialTheme.typography.bodyLarge)

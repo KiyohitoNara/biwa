@@ -7,10 +7,15 @@ import platform.Foundation.NSUserDefaults
 class NSUserDefaultsStorage : PreferencesStorage {
     private val defaults = NSUserDefaults.standardUserDefaults
 
-    override fun getString(key: String, default: String): String =
-        defaults.stringForKey(key) ?: default
+    override fun getString(
+        key: String,
+        default: String,
+    ): String = defaults.stringForKey(key) ?: default
 
-    override fun setString(key: String, value: String) {
+    override fun setString(
+        key: String,
+        value: String,
+    ) {
         defaults.setObject(value, key)
     }
 }

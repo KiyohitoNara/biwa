@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.map
 /** In-memory [TagRepository] for use in tests. */
 class FakeTagRepository : TagRepository {
     private val tags = MutableStateFlow<List<Tag>>(emptyList())
+
     // Triple: (mediaId, tagId, sortOrder)
     private val mediaTagAssociations = MutableStateFlow<List<Triple<String, String, Int>>>(emptyList())
 
@@ -21,7 +22,10 @@ class FakeTagRepository : TagRepository {
         tags.value = tags.value + tag
     }
 
-    override suspend fun renameTag(id: String, name: String) {
+    override suspend fun renameTag(
+        id: String,
+        name: String,
+    ) {
         if (tags.value.any { it.name == name && it.id != id }) error("Tag name '$name' already exists")
         tags.value = tags.value.map { if (it.id == id) it.copy(name = name) else it }
     }
@@ -37,23 +41,31 @@ class FakeTagRepository : TagRepository {
             tags.value.filter { it.id in tagIds }.sortedBy { it.name }
         }
 
-    override suspend fun addTagToMedia(mediaId: String, tagId: String) {
+    override suspend fun addTagToMedia(
+        mediaId: String,
+        tagId: String,
+    ) {
         if (mediaTagAssociations.value.none { it.first == mediaId && it.second == tagId }) {
             val nextOrder = mediaTagAssociations.value.filter { it.second == tagId }.size
             mediaTagAssociations.value = mediaTagAssociations.value + Triple(mediaId, tagId, nextOrder)
         }
     }
 
-    override suspend fun removeTagFromMedia(mediaId: String, tagId: String) {
-        mediaTagAssociations.value = mediaTagAssociations.value.filter {
-            !(it.first == mediaId && it.second == tagId)
-        }
+    override suspend fun removeTagFromMedia(
+        mediaId: String,
+        tagId: String,
+    ) {
+        mediaTagAssociations.value =
+            mediaTagAssociations.value.filter {
+                !(it.first == mediaId && it.second == tagId)
+            }
     }
 
     override fun getMediaIdsWithAllTags(tagIds: List<String>): Flow<Set<String>> =
         mediaTagAssociations.map { associations ->
             if (tagIds.isEmpty()) return@map emptySet()
-            associations.groupBy { it.first }
+            associations
+                .groupBy { it.first }
                 .filterValues { pairs -> tagIds.all { tagId -> pairs.any { it.second == tagId } } }
                 .keys
                 .toSet()
@@ -61,20 +73,25 @@ class FakeTagRepository : TagRepository {
 
     override fun getOrderedMediaIdsForTag(tagId: String): Flow<List<String>> =
         mediaTagAssociations.map { associations ->
-            associations.filter { it.second == tagId }
+            associations
+                .filter { it.second == tagId }
                 .sortedBy { it.third }
                 .map { it.first }
         }
 
-    override suspend fun reorderTagMedia(tagId: String, orderedIds: List<String>) {
-        val updated = mediaTagAssociations.value.map { triple ->
-            if (triple.second == tagId) {
-                val newOrder = orderedIds.indexOf(triple.first)
-                triple.copy(third = if (newOrder != -1) newOrder else triple.third)
-            } else {
-                triple
+    override suspend fun reorderTagMedia(
+        tagId: String,
+        orderedIds: List<String>,
+    ) {
+        val updated =
+            mediaTagAssociations.value.map { triple ->
+                if (triple.second == tagId) {
+                    val newOrder = orderedIds.indexOf(triple.first)
+                    triple.copy(third = if (newOrder != -1) newOrder else triple.third)
+                } else {
+                    triple
+                }
             }
-        }
         mediaTagAssociations.value = updated
     }
 }

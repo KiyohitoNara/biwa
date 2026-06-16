@@ -10,7 +10,9 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 
 /** SQLDelight-backed implementation of [PlaybackStateRepository]. */
-class PlaybackStateRepositoryImpl(driver: SqlDriver) : PlaybackStateRepository {
+class PlaybackStateRepositoryImpl(
+    driver: SqlDriver,
+) : PlaybackStateRepository {
     private val queries = BiwaDatabase(driver).playbackStateQueries
 
     override suspend fun getPlaybackState(videoId: String): PlaybackState? =
@@ -30,12 +32,13 @@ class PlaybackStateRepositoryImpl(driver: SqlDriver) : PlaybackStateRepository {
             )
         }
 
-    private fun Playback_state.toDomain() = PlaybackState(
-        videoId = video_id,
-        positionMs = position_ms,
-        abStartMs = ab_start_ms,
-        abEndMs = ab_end_ms,
-        playbackSpeed = playback_speed.toFloat(),
-        updatedAt = updated_at,
-    )
+    private fun Playback_state.toDomain() =
+        PlaybackState(
+            videoId = video_id,
+            positionMs = position_ms,
+            abStartMs = ab_start_ms,
+            abEndMs = ab_end_ms,
+            playbackSpeed = playback_speed.toFloat(),
+            updatedAt = updated_at,
+        )
 }

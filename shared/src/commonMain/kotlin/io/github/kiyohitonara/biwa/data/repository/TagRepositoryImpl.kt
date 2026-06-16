@@ -5,22 +5,25 @@ import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.db.SqlDriver
 import io.github.kiyohitonara.biwa.data.local.BiwaDatabase
 import io.github.kiyohitonara.biwa.data.local.Tag
-import io.github.kiyohitonara.biwa.domain.model.Tag as DomainTag
 import io.github.kiyohitonara.biwa.domain.repository.TagRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import io.github.kiyohitonara.biwa.domain.model.Tag as DomainTag
 
 /** SQLDelight-backed implementation of [TagRepository]. */
-class TagRepositoryImpl(driver: SqlDriver) : TagRepository {
+class TagRepositoryImpl(
+    driver: SqlDriver,
+) : TagRepository {
     private val db = BiwaDatabase(driver)
     private val tagQueries = db.tagQueries
     private val mediaTagQueries = db.mediaTagQueries
 
     override fun getAllTags(): Flow<List<DomainTag>> =
-        tagQueries.selectAll()
+        tagQueries
+            .selectAll()
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.map { it.toDomain() } }
@@ -35,10 +38,12 @@ class TagRepositoryImpl(driver: SqlDriver) : TagRepository {
             tagQueries.insert(id = tag.id, name = tag.name, created_at = tag.createdAt)
         }
 
-    override suspend fun renameTag(id: String, name: String) =
-        withContext(Dispatchers.IO) {
-            tagQueries.updateName(name = name, id = id)
-        }
+    override suspend fun renameTag(
+        id: String,
+        name: String,
+    ) = withContext(Dispatchers.IO) {
+        tagQueries.updateName(name = name, id = id)
+    }
 
     override suspend fun deleteTag(id: String) =
         withContext(Dispatchers.IO) {
@@ -46,52 +51,61 @@ class TagRepositoryImpl(driver: SqlDriver) : TagRepository {
         }
 
     override fun getTagsForMedia(mediaId: String): Flow<List<DomainTag>> =
-        mediaTagQueries.selectTagsByMediaId(mediaId)
+        mediaTagQueries
+            .selectTagsByMediaId(mediaId)
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.map { it.toDomain() } }
 
-    override suspend fun addTagToMedia(mediaId: String, tagId: String) =
-        withContext(Dispatchers.IO) {
-            mediaTagQueries.insert(mediaId = mediaId, tagId = tagId)
-        }
+    override suspend fun addTagToMedia(
+        mediaId: String,
+        tagId: String,
+    ) = withContext(Dispatchers.IO) {
+        mediaTagQueries.insert(mediaId = mediaId, tagId = tagId)
+    }
 
-    override suspend fun removeTagFromMedia(mediaId: String, tagId: String) =
-        withContext(Dispatchers.IO) {
-            mediaTagQueries.deleteByMediaIdAndTagId(mediaId, tagId)
-        }
+    override suspend fun removeTagFromMedia(
+        mediaId: String,
+        tagId: String,
+    ) = withContext(Dispatchers.IO) {
+        mediaTagQueries.deleteByMediaIdAndTagId(mediaId, tagId)
+    }
 
     override fun getMediaIdsWithAllTags(tagIds: List<String>): Flow<Set<String>> =
-        mediaTagQueries.selectAll()
+        mediaTagQueries
+            .selectAll()
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { rows ->
                 if (tagIds.isEmpty()) return@map emptySet()
-                rows.groupBy { it.media_id }
+                rows
+                    .groupBy { it.media_id }
                     .filterValues { associations ->
                         tagIds.all { tagId -> associations.any { it.tag_id == tagId } }
-                    }
-                    .keys
+                    }.keys
                     .toSet()
             }
 
     override fun getOrderedMediaIdsForTag(tagId: String): Flow<List<String>> =
-        mediaTagQueries.selectMediaIdsByTagOrdered(tagId)
+        mediaTagQueries
+            .selectMediaIdsByTagOrdered(tagId)
             .asFlow()
             .mapToList(Dispatchers.IO)
 
-    override suspend fun reorderTagMedia(tagId: String, orderedIds: List<String>) =
-        withContext(Dispatchers.IO) {
-            db.transaction {
-                orderedIds.forEachIndexed { index, mediaId ->
-                    mediaTagQueries.updateSortOrder(
-                        sort_order = index.toLong(),
-                        tag_id = tagId,
-                        media_id = mediaId,
-                    )
-                }
+    override suspend fun reorderTagMedia(
+        tagId: String,
+        orderedIds: List<String>,
+    ) = withContext(Dispatchers.IO) {
+        db.transaction {
+            orderedIds.forEachIndexed { index, mediaId ->
+                mediaTagQueries.updateSortOrder(
+                    sort_order = index.toLong(),
+                    tag_id = tagId,
+                    media_id = mediaId,
+                )
             }
         }
+    }
 
     private fun Tag.toDomain() = DomainTag(id = id, name = name, createdAt = created_at)
 }

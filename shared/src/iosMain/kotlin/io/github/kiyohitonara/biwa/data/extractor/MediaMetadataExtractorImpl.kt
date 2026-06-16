@@ -9,11 +9,12 @@ class MediaMetadataExtractorImpl : MediaMetadataExtractor {
     override suspend fun extract(sourceUri: String): MediaFileMetadata {
         val fileName = sourceUri.substringAfterLast("/").ifBlank { "unknown" }
         val ext = fileName.substringAfterLast(".", "").lowercase()
-        val mediaType = when {
-            ext == "gif" -> MediaType.GIF
-            ext in setOf("mp4", "mov", "m4v", "avi", "mkv") -> MediaType.VIDEO
-            else -> MediaType.PHOTO
-        }
+        val mediaType =
+            when {
+                ext == "gif" -> MediaType.GIF
+                ext in setOf("mp4", "mov", "m4v", "avi", "mkv") -> MediaType.VIDEO
+                else -> MediaType.PHOTO
+            }
         return MediaFileMetadata(
             fileName = fileName,
             mediaType = mediaType,

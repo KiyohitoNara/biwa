@@ -8,8 +8,12 @@ import io.github.kiyohitonara.biwa.domain.repository.TagRepository
  * The items are assigned sequential sort_order values (0, 1, 2, …) in the
  * order provided by [orderedIds].
  */
-class ReorderTagMediaUseCase(private val repository: TagRepository) {
+class ReorderTagMediaUseCase(
+    private val repository: TagRepository,
+) {
     /** Executes the reorder for [tagId] with [orderedIds] defining the new order. */
-    suspend fun execute(tagId: String, orderedIds: List<String>) =
-        repository.reorderTagMedia(tagId, orderedIds)
+    suspend fun execute(
+        tagId: String,
+        orderedIds: List<String>,
+    ) = repository.reorderTagMedia(tagId, orderedIds)
 }

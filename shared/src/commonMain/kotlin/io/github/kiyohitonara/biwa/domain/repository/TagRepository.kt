@@ -15,7 +15,10 @@ interface TagRepository {
     suspend fun createTag(tag: Tag)
 
     /** Renames the tag identified by [id] to [name]. Throws if the name is already taken. */
-    suspend fun renameTag(id: String, name: String)
+    suspend fun renameTag(
+        id: String,
+        name: String,
+    )
 
     /** Deletes the tag and all its media associations. */
     suspend fun deleteTag(id: String)
@@ -24,10 +27,16 @@ interface TagRepository {
     fun getTagsForMedia(mediaId: String): Flow<List<Tag>>
 
     /** Attaches the tag identified by [tagId] to the media item identified by [mediaId]. */
-    suspend fun addTagToMedia(mediaId: String, tagId: String)
+    suspend fun addTagToMedia(
+        mediaId: String,
+        tagId: String,
+    )
 
     /** Detaches the tag identified by [tagId] from the media item identified by [mediaId]. */
-    suspend fun removeTagFromMedia(mediaId: String, tagId: String)
+    suspend fun removeTagFromMedia(
+        mediaId: String,
+        tagId: String,
+    )
 
     /**
      * Returns a flow of media IDs that have ALL of the given [tagIds] attached.
@@ -45,5 +54,8 @@ interface TagRepository {
      * Persists a tag-specific manual ordering by assigning sequential sort_order
      * values to the media items identified by [orderedIds].
      */
-    suspend fun reorderTagMedia(tagId: String, orderedIds: List<String>)
+    suspend fun reorderTagMedia(
+        tagId: String,
+        orderedIds: List<String>,
+    )
 }

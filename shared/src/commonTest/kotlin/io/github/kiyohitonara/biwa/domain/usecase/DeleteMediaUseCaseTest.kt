@@ -11,93 +11,122 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DeleteMediaUseCaseTest {
     private val fakeItems = MutableStateFlow<List<MediaItem>>(emptyList())
     private val deletedPaths = mutableListOf<String>()
 
-    private val fakeRepository = object : MediaRepository {
-        override fun getAllMedia(): Flow<List<MediaItem>> = fakeItems
-        override suspend fun getMediaById(id: String): MediaItem? = fakeItems.value.find { it.id == id }
-        override suspend fun addMedia(item: MediaItem) { fakeItems.update { it + item } }
-        override suspend fun deleteMedia(id: String) { fakeItems.update { list -> list.filter { it.id != id } } }
-        override suspend fun updateLastViewedAt(id: String, timestamp: Long) {}
-        override suspend fun updateThumbnailPath(id: String, path: String) {}
-        override suspend fun updateSortOrder(id: String, sortOrder: Long) {}
-    }
+    private val fakeRepository =
+        object : MediaRepository {
+            override fun getAllMedia(): Flow<List<MediaItem>> = fakeItems
 
-    private val fakeFileStorage = object : FileStorage {
-        override suspend fun copyToInternalStorage(sourceUri: String, fileName: String) =
-            "/internal/media/$fileName"
-        override suspend fun deleteFromInternalStorage(filePath: String) {
-            deletedPaths.add(filePath)
+            override suspend fun getMediaById(id: String): MediaItem? = fakeItems.value.find { it.id == id }
+
+            override suspend fun addMedia(item: MediaItem) {
+                fakeItems.update { it + item }
+            }
+
+            override suspend fun deleteMedia(id: String) {
+                fakeItems.update { list -> list.filter { it.id != id } }
+            }
+
+            override suspend fun updateLastViewedAt(
+                id: String,
+                timestamp: Long,
+            ) {}
+
+            override suspend fun updateThumbnailPath(
+                id: String,
+                path: String,
+            ) {}
+
+            override suspend fun updateSortOrder(
+                id: String,
+                sortOrder: Long,
+            ) {}
         }
-    }
+
+    private val fakeFileStorage =
+        object : FileStorage {
+            override suspend fun copyToInternalStorage(
+                sourceUri: String,
+                fileName: String,
+            ) = "/internal/media/$fileName"
+
+            override suspend fun deleteFromInternalStorage(filePath: String) {
+                deletedPaths.add(filePath)
+            }
+        }
 
     private val useCase = DeleteMediaUseCase(fakeRepository, fakeFileStorage)
 
     @Test
-    fun `execute removes item from repository`() = runTest {
-        fakeRepository.addMedia(videoItem())
+    fun `execute removes item from repository`() =
+        runTest {
+            fakeRepository.addMedia(videoItem())
 
-        useCase.execute("id-1")
+            useCase.execute("id-1")
 
-        val result = fakeRepository.getAllMedia().first()
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    fun `execute deletes file from storage`() = runTest {
-        fakeRepository.addMedia(videoItem())
-
-        useCase.execute("id-1")
-
-        assertEquals(listOf("/internal/media/sample.mp4"), deletedPaths)
-    }
+            val result = fakeRepository.getAllMedia().first()
+            assertTrue(result.isEmpty())
+        }
 
     @Test
-    fun `execute does nothing when id does not exist`() = runTest {
-        useCase.execute("nonexistent")
+    fun `execute deletes file from storage`() =
+        runTest {
+            fakeRepository.addMedia(videoItem())
 
-        assertTrue(deletedPaths.isEmpty())
-    }
+            useCase.execute("id-1")
 
-    @Test
-    fun `execute does not affect other items`() = runTest {
-        fakeRepository.addMedia(videoItem().copy(id = "a", filePath = "/internal/media/a.mp4"))
-        fakeRepository.addMedia(videoItem().copy(id = "b", filePath = "/internal/media/b.mp4"))
-
-        useCase.execute("a")
-
-        val result = fakeRepository.getAllMedia().first()
-        assertEquals(1, result.size)
-        assertEquals("b", result.first().id)
-    }
+            assertEquals(listOf("/internal/media/sample.mp4"), deletedPaths)
+        }
 
     @Test
-    fun `execute looks up item before deleting to get filePath`() = runTest {
-        fakeRepository.addMedia(videoItem().copy(filePath = "/internal/media/custom.mp4"))
+    fun `execute does nothing when id does not exist`() =
+        runTest {
+            useCase.execute("nonexistent")
 
-        useCase.execute("id-1")
+            assertTrue(deletedPaths.isEmpty())
+        }
 
-        assertEquals("/internal/media/custom.mp4", deletedPaths.first())
-    }
+    @Test
+    fun `execute does not affect other items`() =
+        runTest {
+            fakeRepository.addMedia(videoItem().copy(id = "a", filePath = "/internal/media/a.mp4"))
+            fakeRepository.addMedia(videoItem().copy(id = "b", filePath = "/internal/media/b.mp4"))
 
-    private fun videoItem() = MediaItem(
-        id = "id-1",
-        filePath = "/internal/media/sample.mp4",
-        mediaType = MediaType.VIDEO,
-        displayName = "sample.mp4",
-        durationMs = 30_000L,
-        widthPx = 1920L,
-        heightPx = 1080L,
-        fileSizeBytes = 10_000_000L,
-        thumbnailPath = null,
-        takenAt = null,
-        sortOrder = 0L,
-        lastViewedAt = null,
-        addedAt = 1_700_000_000L,
-    )
+            useCase.execute("a")
+
+            val result = fakeRepository.getAllMedia().first()
+            assertEquals(1, result.size)
+            assertEquals("b", result.first().id)
+        }
+
+    @Test
+    fun `execute looks up item before deleting to get filePath`() =
+        runTest {
+            fakeRepository.addMedia(videoItem().copy(filePath = "/internal/media/custom.mp4"))
+
+            useCase.execute("id-1")
+
+            assertEquals("/internal/media/custom.mp4", deletedPaths.first())
+        }
+
+    private fun videoItem() =
+        MediaItem(
+            id = "id-1",
+            filePath = "/internal/media/sample.mp4",
+            mediaType = MediaType.VIDEO,
+            displayName = "sample.mp4",
+            durationMs = 30_000L,
+            widthPx = 1920L,
+            heightPx = 1080L,
+            fileSizeBytes = 10_000_000L,
+            thumbnailPath = null,
+            takenAt = null,
+            sortOrder = 0L,
+            lastViewedAt = null,
+            addedAt = 1_700_000_000L,
+        )
 }

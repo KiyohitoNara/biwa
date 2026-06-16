@@ -60,11 +60,12 @@ actual fun App() {
     val settingsViewModel: SettingsViewModel = koinViewModel()
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
 
-    val darkTheme = when (settingsState.theme) {
-        AppTheme.LIGHT -> false
-        AppTheme.DARK -> true
-        AppTheme.SYSTEM -> isSystemInDarkTheme()
-    }
+    val darkTheme =
+        when (settingsState.theme) {
+            AppTheme.LIGHT -> false
+            AppTheme.DARK -> true
+            AppTheme.SYSTEM -> isSystemInDarkTheme()
+        }
 
     MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
         val navController = rememberNavController()

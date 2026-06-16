@@ -36,22 +36,22 @@ class TagManagementViewModel(
     private val addTagToMediaUseCase: AddTagToMediaUseCase,
     private val removeTagFromMediaUseCase: RemoveTagFromMediaUseCase,
 ) : ViewModel() {
-
     /**
      * Current state combining all tags with the media-specific tag list.
      *
      * Stays [TagManagementUiState.Loading] until the first DB emission arrives.
      */
-    val uiState: StateFlow<TagManagementUiState> = combine(
-        getAllTagsUseCase.execute(),
-        mediaId?.let { getTagsForMediaUseCase.execute(it) } ?: flowOf(emptyList()),
-    ) { allTags, mediaTags ->
-        TagManagementUiState.Ready(allTags = allTags, mediaTags = mediaTags)
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = TagManagementUiState.Loading,
-    )
+    val uiState: StateFlow<TagManagementUiState> =
+        combine(
+            getAllTagsUseCase.execute(),
+            mediaId?.let { getTagsForMediaUseCase.execute(it) } ?: flowOf(emptyList()),
+        ) { allTags, mediaTags ->
+            TagManagementUiState.Ready(allTags = allTags, mediaTags = mediaTags)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = TagManagementUiState.Loading,
+        )
 
     private val _error = MutableSharedFlow<String>()
 
@@ -78,7 +78,10 @@ class TagManagementViewModel(
      *
      * Emits on [error] if the name is blank or already taken.
      */
-    fun renameTag(id: String, name: String) {
+    fun renameTag(
+        id: String,
+        name: String,
+    ) {
         viewModelScope.launch {
             try {
                 renameTagUseCase.execute(id, name)

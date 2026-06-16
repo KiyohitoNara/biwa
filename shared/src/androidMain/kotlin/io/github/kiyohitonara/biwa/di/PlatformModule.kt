@@ -5,20 +5,21 @@ import io.github.kiyohitonara.biwa.data.extractor.MediaMetadataExtractorImpl
 import io.github.kiyohitonara.biwa.data.local.DatabaseDriverFactory
 import io.github.kiyohitonara.biwa.data.local.FileManager
 import io.github.kiyohitonara.biwa.data.repository.ThumbnailRepositoryImpl
+import io.github.kiyohitonara.biwa.data.storage.SharedPreferencesStorage
 import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
 import io.github.kiyohitonara.biwa.domain.repository.ThumbnailRepository
-import io.github.kiyohitonara.biwa.data.storage.SharedPreferencesStorage
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
 import io.github.kiyohitonara.biwa.domain.storage.PreferencesStorage
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 /** Koin module for Android-specific bindings that require a [Context]. */
-val platformModule = module {
-    single { DatabaseDriverFactory(androidContext()) }
-    single<SqlDriver> { get<DatabaseDriverFactory>().createDriver() }
-    single<FileStorage> { FileManager(androidContext()) }
-    single<MediaMetadataExtractor> { MediaMetadataExtractorImpl(androidContext()) }
-    single<ThumbnailRepository> { ThumbnailRepositoryImpl(androidContext()) }
-    single<PreferencesStorage> { SharedPreferencesStorage(androidContext()) }
-}
+val platformModule =
+    module {
+        single { DatabaseDriverFactory(androidContext()) }
+        single<SqlDriver> { get<DatabaseDriverFactory>().createDriver() }
+        single<FileStorage> { FileManager(androidContext()) }
+        single<MediaMetadataExtractor> { MediaMetadataExtractorImpl(androidContext()) }
+        single<ThumbnailRepository> { ThumbnailRepositoryImpl(androidContext()) }
+        single<PreferencesStorage> { SharedPreferencesStorage(androidContext()) }
+    }

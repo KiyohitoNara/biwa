@@ -71,43 +71,47 @@ class LibraryViewModel(
      * The upstream flow is kept active for 5 seconds after the last subscriber
      * disappears to survive configuration changes.
      */
-    val uiState: StateFlow<LibraryUiState> = _activeTagIds
-        .flatMapLatest { tagIds ->
-            val mediaFlow = when {
-                tagIds.isEmpty() -> getAllMediaUseCase.execute()
-                    .map { items -> items.sortedBy { it.sortOrder } }
-                tagIds.size == 1 -> combine(
-                    getAllMediaUseCase.execute(),
-                    getOrderedMediaIdsForTagUseCase.execute(tagIds.first()),
-                ) { items, orderedIds ->
-                    val idIndex = orderedIds.withIndex().associate { (i, id) -> id to i }
-                    items.filter { it.id in idIndex }.sortedBy { idIndex[it.id] ?: Int.MAX_VALUE }
-                }
-                else -> combine(
-                    getAllMediaUseCase.execute(),
-                    getMediaIdsWithAllTagsUseCase.execute(tagIds.toList()),
-                ) { items, filteredIds ->
-                    items.filter { it.id in filteredIds }.sortedBy { it.sortOrder }
-                }
-            }
+    val uiState: StateFlow<LibraryUiState> =
+        _activeTagIds
+            .flatMapLatest { tagIds ->
+                val mediaFlow =
+                    when {
+                        tagIds.isEmpty() ->
+                            getAllMediaUseCase
+                                .execute()
+                                .map { items -> items.sortedBy { it.sortOrder } }
+                        tagIds.size == 1 ->
+                            combine(
+                                getAllMediaUseCase.execute(),
+                                getOrderedMediaIdsForTagUseCase.execute(tagIds.first()),
+                            ) { items, orderedIds ->
+                                val idIndex = orderedIds.withIndex().associate { (i, id) -> id to i }
+                                items.filter { it.id in idIndex }.sortedBy { idIndex[it.id] ?: Int.MAX_VALUE }
+                            }
+                        else ->
+                            combine(
+                                getAllMediaUseCase.execute(),
+                                getMediaIdsWithAllTagsUseCase.execute(tagIds.toList()),
+                            ) { items, filteredIds ->
+                                items.filter { it.id in filteredIds }.sortedBy { it.sortOrder }
+                            }
+                    }
 
-            combine(mediaFlow, getAllTagsUseCase.execute()) { items, allTags ->
-                LibraryUiState.Success(
-                    items = items,
-                    availableTags = allTags,
-                    activeTagIds = tagIds,
-                )
-            }
-        }
-        .map { state ->
-            libraryDisplayState.update(state.items.map { it.id })
-            state
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = LibraryUiState.Loading,
-        )
+                combine(mediaFlow, getAllTagsUseCase.execute()) { items, allTags ->
+                    LibraryUiState.Success(
+                        items = items,
+                        availableTags = allTags,
+                        activeTagIds = tagIds,
+                    )
+                }
+            }.map { state ->
+                libraryDisplayState.update(state.items.map { it.id })
+                state
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = LibraryUiState.Loading,
+            )
 
     private val _deleteError = MutableSharedFlow<String>()
 
@@ -132,7 +136,8 @@ class LibraryViewModel(
     init {
         viewModelScope.launch {
             getAllMediaUseCase.execute().collect { items ->
-                items.filter { it.thumbnailPath == null }
+                items
+                    .filter { it.thumbnailPath == null }
                     .forEach { item ->
                         if (generatingIds.add(item.id)) {
                             launch { generateThumbnailUseCase.execute(item) }
@@ -186,7 +191,10 @@ class LibraryViewModel(
      *
      * No-op if [uiState] is not [LibraryUiState.Success].
      */
-    fun reorderMedia(fromIndex: Int, toIndex: Int) {
+    fun reorderMedia(
+        fromIndex: Int,
+        toIndex: Int,
+    ) {
         val state = uiState.value as? LibraryUiState.Success ?: return
         val items = state.items.toMutableList()
         val item = items.removeAt(fromIndex)
@@ -249,7 +257,7 @@ class LibraryViewModel(
                             heightPx = metadata.heightPx,
                             fileSizeBytes = metadata.fileSizeBytes,
                             takenAt = metadata.takenAt,
-                        )
+                        ),
                     )
                     success++
                 } catch (_: Exception) {
@@ -277,11 +285,12 @@ class LibraryViewModel(
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private fun List<MediaItem>.applySort(sortOrder: SortOrder) = when (sortOrder) {
-        SortOrder.ADDED_AT_DESC -> sortedByDescending { it.addedAt }
-        SortOrder.ADDED_AT_ASC -> sortedBy { it.addedAt }
-        SortOrder.FILE_NAME -> sortedBy { it.displayName.lowercase() }
-        SortOrder.LAST_VIEWED_AT -> sortedByDescending { it.lastViewedAt ?: Long.MIN_VALUE }
-        SortOrder.FILE_SIZE -> sortedByDescending { it.fileSizeBytes }
-    }
+    private fun List<MediaItem>.applySort(sortOrder: SortOrder) =
+        when (sortOrder) {
+            SortOrder.ADDED_AT_DESC -> sortedByDescending { it.addedAt }
+            SortOrder.ADDED_AT_ASC -> sortedBy { it.addedAt }
+            SortOrder.FILE_NAME -> sortedBy { it.displayName.lowercase() }
+            SortOrder.LAST_VIEWED_AT -> sortedByDescending { it.lastViewedAt ?: Long.MIN_VALUE }
+            SortOrder.FILE_SIZE -> sortedByDescending { it.fileSizeBytes }
+        }
 }

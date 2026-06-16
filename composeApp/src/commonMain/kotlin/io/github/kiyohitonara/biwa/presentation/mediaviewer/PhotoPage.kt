@@ -54,21 +54,27 @@ fun PhotoPage(
     //   instead of being locked at an upscaled, blurry fit-to-screen.
     val minScale by remember(imageIntrinsicSize, containerSize) {
         derivedStateOf {
-            if (imageIntrinsicSize.width <= 0 || imageIntrinsicSize.height <= 0 ||
-                containerSize.width <= 0 || containerSize.height <= 0
+            if (imageIntrinsicSize.width <= 0 ||
+                imageIntrinsicSize.height <= 0 ||
+                containerSize.width <= 0 ||
+                containerSize.height <= 0
             ) {
                 1f
             } else {
-                val fitFactor = min(
-                    containerSize.width.toFloat() / imageIntrinsicSize.width,
-                    containerSize.height.toFloat() / imageIntrinsicSize.height,
-                )
+                val fitFactor =
+                    min(
+                        containerSize.width.toFloat() / imageIntrinsicSize.width,
+                        containerSize.height.toFloat() / imageIntrinsicSize.height,
+                    )
                 min(1f, 1f / fitFactor)
             }
         }
     }
 
-    fun setZoom(newScaleUnclamped: Float, anchor: Offset) {
+    fun setZoom(
+        newScaleUnclamped: Float,
+        anchor: Offset,
+    ) {
         val newScale = newScaleUnclamped.coerceIn(minScale, MAX_ZOOM)
         if (newScale <= 1f) {
             scale = newScale
@@ -77,77 +83,81 @@ fun PhotoPage(
             val ratio = newScale / scale.coerceAtLeast(0.0001f)
             val cx = containerSize.width / 2f
             val cy = containerSize.height / 2f
-            offset = Offset(
-                (anchor.x - cx) * (1f - ratio) + offset.x * ratio,
-                (anchor.y - cy) * (1f - ratio) + offset.y * ratio,
-            )
+            offset =
+                Offset(
+                    (anchor.x - cx) * (1f - ratio) + offset.x * ratio,
+                    (anchor.y - cy) * (1f - ratio) + offset.y * ratio,
+                )
             scale = newScale
         }
         onZoomChanged(scale > 1f)
     }
 
-    val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
-        val newScale = (scale * zoomChange).coerceIn(minScale, MAX_ZOOM)
-        scale = newScale
-        offset = if (newScale > 1f) offset + panChange else Offset.Zero
-        onZoomChanged(newScale > 1f)
-    }
+    val transformableState =
+        rememberTransformableState { zoomChange, panChange, _ ->
+            val newScale = (scale * zoomChange).coerceIn(minScale, MAX_ZOOM)
+            scale = newScale
+            offset = if (newScale > 1f) offset + panChange else Offset.Zero
+            onZoomChanged(newScale > 1f)
+        }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { containerSize = it }
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    val firstUp = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                        waitForUpOrCancellation()
-                    } ?: return@awaitEachGesture
-
-                    val secondDown = withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .onSizeChanged { containerSize = it }
+                .pointerInput(Unit) {
+                    awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
-                    }
-                    if (secondDown == null) {
-                        onTap()
-                        return@awaitEachGesture
-                    }
+                        val firstUp =
+                            withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                waitForUpOrCancellation()
+                            } ?: return@awaitEachGesture
 
-                    val anchor = secondDown.position
-                    var dragStarted = false
-                    var lastY = secondDown.position.y
-
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Main)
-                        val change = event.changes.firstOrNull { it.id == secondDown.id } ?: break
-
-                        if (!change.pressed) {
-                            if (!dragStarted) {
-                                val target = if (scale > 1f) 1f else DOUBLE_TAP_ZOOM
-                                setZoom(target, anchor)
+                        val secondDown =
+                            withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
+                                awaitFirstDown(requireUnconsumed = false)
                             }
-                            break
+                        if (secondDown == null) {
+                            onTap()
+                            return@awaitEachGesture
                         }
 
-                        if (!dragStarted) {
-                            val moved = (change.position - anchor).getDistance()
-                            if (moved > viewConfiguration.touchSlop) {
-                                dragStarted = true
+                        val anchor = secondDown.position
+                        var dragStarted = false
+                        var lastY = secondDown.position.y
+
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Main)
+                            val change = event.changes.firstOrNull { it.id == secondDown.id } ?: break
+
+                            if (!change.pressed) {
+                                if (!dragStarted) {
+                                    val target = if (scale > 1f) 1f else DOUBLE_TAP_ZOOM
+                                    setZoom(target, anchor)
+                                }
+                                break
+                            }
+
+                            if (!dragStarted) {
+                                val moved = (change.position - anchor).getDistance()
+                                if (moved > viewConfiguration.touchSlop) {
+                                    dragStarted = true
+                                    lastY = change.position.y
+                                    onZoomChanged(true)
+                                    change.consume()
+                                }
+                            }
+
+                            if (dragStarted) {
+                                val dy = change.position.y - lastY
                                 lastY = change.position.y
-                                onZoomChanged(true)
+                                setZoom(scale * exp(dy / QUICK_ZOOM_SENSITIVITY_PX), anchor)
                                 change.consume()
                             }
                         }
-
-                        if (dragStarted) {
-                            val dy = change.position.y - lastY
-                            lastY = change.position.y
-                            setZoom(scale * exp(dy / QUICK_ZOOM_SENSITIVITY_PX), anchor)
-                            change.consume()
-                        }
                     }
-                }
-            }
-            .transformable(state = transformableState, lockRotationOnZoomPan = true),
+                }.transformable(state = transformableState, lockRotationOnZoomPan = true),
         contentAlignment = Alignment.Center,
     ) {
         AsyncImage(
@@ -158,15 +168,16 @@ fun PhotoPage(
                 val image = state.result.image
                 imageIntrinsicSize = IntSize(image.width, image.height)
             },
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(
-                    scaleX = scale,
-                    scaleY = scale,
-                    translationX = offset.x,
-                    translationY = offset.y,
-                    rotationZ = rotationDegrees.toFloat(),
-                ),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offset.x,
+                        translationY = offset.y,
+                        rotationZ = rotationDegrees.toFloat(),
+                    ),
         )
     }
 }

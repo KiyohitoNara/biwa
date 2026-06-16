@@ -10,7 +10,9 @@ import io.github.kiyohitonara.biwa.domain.repository.MediaRepository
  *
  * @param repository Persistence layer for updating sort order values.
  */
-class ReorderMediaUseCase(private val repository: MediaRepository) {
+class ReorderMediaUseCase(
+    private val repository: MediaRepository,
+) {
     /**
      * Writes each ID's list position as its new [MediaItem.sortOrder].
      *

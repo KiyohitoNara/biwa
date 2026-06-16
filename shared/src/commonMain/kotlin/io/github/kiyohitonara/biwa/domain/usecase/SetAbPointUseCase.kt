@@ -45,7 +45,7 @@ class SetAbPointUseCase(
                 abEndMs = newAbEnd,
                 playbackSpeed = current?.playbackSpeed ?: 1.0f,
                 updatedAt = clock(),
-            )
+            ),
         )
         return SetAbPointResult.Success
     }

@@ -11,51 +11,57 @@ class GetMediaIdsWithAllTagsUseCaseTest {
     private val repository = FakeTagRepository()
     private val useCase = GetMediaIdsWithAllTagsUseCase(repository)
 
-    private suspend fun createTag(id: String, name: String) =
-        repository.createTag(Tag(id = id, name = name, createdAt = 0L))
+    private suspend fun createTag(
+        id: String,
+        name: String,
+    ) = repository.createTag(Tag(id = id, name = name, createdAt = 0L))
 
     @Test
-    fun `execute returns empty set when no tags specified`() = runTest {
-        repository.addTagToMedia("media-1", "t1")
+    fun `execute returns empty set when no tags specified`() =
+        runTest {
+            repository.addTagToMedia("media-1", "t1")
 
-        val result = useCase.execute(emptyList()).first()
+            val result = useCase.execute(emptyList()).first()
 
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    fun `execute returns media with single matching tag`() = runTest {
-        createTag("t1", "Nature")
-        repository.addTagToMedia("media-1", "t1")
-        repository.addTagToMedia("media-2", "t1")
-
-        val result = useCase.execute(listOf("t1")).first()
-
-        assertEquals(setOf("media-1", "media-2"), result)
-    }
+            assertTrue(result.isEmpty())
+        }
 
     @Test
-    fun `execute requires ALL tags for AND filtering`() = runTest {
-        createTag("t1", "Nature")
-        createTag("t2", "Travel")
-        repository.addTagToMedia("media-1", "t1")
-        repository.addTagToMedia("media-1", "t2")
-        repository.addTagToMedia("media-2", "t1")
+    fun `execute returns media with single matching tag`() =
+        runTest {
+            createTag("t1", "Nature")
+            repository.addTagToMedia("media-1", "t1")
+            repository.addTagToMedia("media-2", "t1")
 
-        val result = useCase.execute(listOf("t1", "t2")).first()
+            val result = useCase.execute(listOf("t1")).first()
 
-        assertEquals(setOf("media-1"), result)
-    }
+            assertEquals(setOf("media-1", "media-2"), result)
+        }
 
     @Test
-    fun `execute returns empty set when no media has all tags`() = runTest {
-        createTag("t1", "Nature")
-        createTag("t2", "Travel")
-        repository.addTagToMedia("media-1", "t1")
-        repository.addTagToMedia("media-2", "t2")
+    fun `execute requires ALL tags for AND filtering`() =
+        runTest {
+            createTag("t1", "Nature")
+            createTag("t2", "Travel")
+            repository.addTagToMedia("media-1", "t1")
+            repository.addTagToMedia("media-1", "t2")
+            repository.addTagToMedia("media-2", "t1")
 
-        val result = useCase.execute(listOf("t1", "t2")).first()
+            val result = useCase.execute(listOf("t1", "t2")).first()
 
-        assertTrue(result.isEmpty())
-    }
+            assertEquals(setOf("media-1"), result)
+        }
+
+    @Test
+    fun `execute returns empty set when no media has all tags`() =
+        runTest {
+            createTag("t1", "Nature")
+            createTag("t2", "Travel")
+            repository.addTagToMedia("media-1", "t1")
+            repository.addTagToMedia("media-2", "t2")
+
+            val result = useCase.execute(listOf("t1", "t2")).first()
+
+            assertTrue(result.isEmpty())
+        }
 }

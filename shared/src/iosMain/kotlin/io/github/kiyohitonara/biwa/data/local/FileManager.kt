@@ -13,7 +13,10 @@ import platform.Foundation.NSUserDomainMask
 /** iOS implementation that copies files into the app sandbox's Application Support directory. */
 @OptIn(ExperimentalForeignApi::class)
 actual class FileManager : FileStorage {
-    actual override suspend fun copyToInternalStorage(sourceUri: String, fileName: String): String =
+    actual override suspend fun copyToInternalStorage(
+        sourceUri: String,
+        fileName: String,
+    ): String =
         withContext(Dispatchers.IO) {
             val mediaDir = mediaDirectory()
             NSFileManager.defaultManager.createDirectoryAtPath(
@@ -24,11 +27,12 @@ actual class FileManager : FileStorage {
             )
 
             val destPath = uniquePath(mediaDir, fileName)
-            val success = NSFileManager.defaultManager.copyItemAtPath(
-                srcPath = sourceUri,
-                toPath = destPath,
-                error = null,
-            )
+            val success =
+                NSFileManager.defaultManager.copyItemAtPath(
+                    srcPath = sourceUri,
+                    toPath = destPath,
+                    error = null,
+                )
             check(success) { "Failed to copy file from $sourceUri to $destPath" }
 
             destPath
@@ -43,13 +47,19 @@ actual class FileManager : FileStorage {
         }
 
     private fun mediaDirectory(): String {
-        val appSupport = NSSearchPathForDirectoriesInDomains(
-            NSApplicationSupportDirectory, NSUserDomainMask, true
-        ).first() as String
+        val appSupport =
+            NSSearchPathForDirectoriesInDomains(
+                NSApplicationSupportDirectory,
+                NSUserDomainMask,
+                true,
+            ).first() as String
         return "$appSupport/$MEDIA_DIR"
     }
 
-    private fun uniquePath(dir: String, fileName: String): String {
+    private fun uniquePath(
+        dir: String,
+        fileName: String,
+    ): String {
         val base = fileName.substringBeforeLast(".")
         val ext = fileName.substringAfterLast(".", "")
         val extSuffix = if (ext.isNotEmpty()) ".$ext" else ""

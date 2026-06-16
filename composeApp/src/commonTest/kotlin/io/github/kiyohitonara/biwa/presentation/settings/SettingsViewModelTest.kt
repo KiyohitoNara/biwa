@@ -43,22 +43,25 @@ class SettingsViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun buildViewModel() = SettingsViewModel(
-        getUserPreferencesUseCase = GetUserPreferencesUseCase(fakeRepository),
-        setThemeUseCase = SetThemeUseCase(fakeRepository),
-    )
+    private fun buildViewModel() =
+        SettingsViewModel(
+            getUserPreferencesUseCase = GetUserPreferencesUseCase(fakeRepository),
+            setThemeUseCase = SetThemeUseCase(fakeRepository),
+        )
 
     @Test
-    fun `uiState reflects default preferences initially`() = runTest {
-        assertEquals(AppTheme.SYSTEM, viewModel.uiState.value.theme)
-    }
+    fun `uiState reflects default preferences initially`() =
+        runTest {
+            assertEquals(AppTheme.SYSTEM, viewModel.uiState.value.theme)
+        }
 
     @Test
-    fun `setTheme updates uiState`() = runTest {
-        viewModel.setTheme(AppTheme.DARK)
+    fun `setTheme updates uiState`() =
+        runTest {
+            viewModel.setTheme(AppTheme.DARK)
 
-        assertEquals(AppTheme.DARK, viewModel.uiState.value.theme)
-    }
+            assertEquals(AppTheme.DARK, viewModel.uiState.value.theme)
+        }
 }
 
 private class FakeUserPreferencesRepository : UserPreferencesRepository {

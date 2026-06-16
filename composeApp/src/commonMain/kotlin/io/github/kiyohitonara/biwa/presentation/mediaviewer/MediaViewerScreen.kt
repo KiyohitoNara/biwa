@@ -76,9 +76,10 @@ fun MediaViewerScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black),
     ) {
         when (val state = uiState) {
             is MediaViewerUiState.Loading -> {
@@ -114,10 +115,11 @@ private fun MediaViewerContent(
     var isZoomed by remember { mutableStateOf(false) }
     var showTagSheet by remember { mutableStateOf(false) }
     var rotationDegrees by remember { mutableIntStateOf(0) }
-    val pagerState = rememberPagerState(
-        initialPage = state.currentIndex,
-        pageCount = { state.items.size },
-    )
+    val pagerState =
+        rememberPagerState(
+            initialPage = state.currentIndex,
+            pageCount = { state.items.size },
+        )
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { page ->
@@ -137,18 +139,20 @@ private fun MediaViewerContent(
             val item = state.items[page]
             val isActive = page == pagerState.currentPage
             when (item.mediaType) {
-                MediaType.PHOTO -> PhotoPage(
-                    filePath = item.filePath,
-                    rotationDegrees = if (isActive) rotationDegrees else 0,
-                    onTap = viewModel::toggleToolbar,
-                    onZoomChanged = { zoomed -> isZoomed = zoomed },
-                )
-                MediaType.VIDEO, MediaType.GIF -> VideoPage(
-                    item = item,
-                    isActive = isActive,
-                    state = state,
-                    viewModel = viewModel,
-                )
+                MediaType.PHOTO ->
+                    PhotoPage(
+                        filePath = item.filePath,
+                        rotationDegrees = if (isActive) rotationDegrees else 0,
+                        onTap = viewModel::toggleToolbar,
+                        onZoomChanged = { zoomed -> isZoomed = zoomed },
+                    )
+                MediaType.VIDEO, MediaType.GIF ->
+                    VideoPage(
+                        item = item,
+                        isActive = isActive,
+                        state = state,
+                        viewModel = viewModel,
+                    )
             }
         }
 
@@ -192,11 +196,12 @@ private fun TopToolbar(
         modifier = modifier,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.5f))
-                .statusBarsPadding()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .statusBarsPadding()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
@@ -248,7 +253,10 @@ private fun TopToolbar(
                 ) {
                     DropdownMenuItem(
                         text = { Text("Delete") },
-                        onClick = { showOverflowMenu = false; onDelete() },
+                        onClick = {
+                            showOverflowMenu = false
+                            onDelete()
+                        },
                     )
                 }
             }
@@ -287,9 +295,10 @@ private fun TagAssignmentSheet(
                 )
             } else {
                 FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ready.allTags.forEach { tag ->

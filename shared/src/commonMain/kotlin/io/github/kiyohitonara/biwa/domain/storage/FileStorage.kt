@@ -14,7 +14,10 @@ interface FileStorage {
      * @param fileName Desired destination file name.
      * @return Absolute path of the copied file in internal storage.
      */
-    suspend fun copyToInternalStorage(sourceUri: String, fileName: String): String
+    suspend fun copyToInternalStorage(
+        sourceUri: String,
+        fileName: String,
+    ): String
 
     /**
      * Deletes the file at [filePath] from app-internal storage.

@@ -14,7 +14,5 @@ class GetPlaybackStateUseCase(
     /**
      * Returns the saved [PlaybackState] for [videoId], or null if none exists.
      */
-    suspend fun execute(videoId: String): PlaybackState? {
-        return repository.getPlaybackState(videoId)
-    }
+    suspend fun execute(videoId: String): PlaybackState? = repository.getPlaybackState(videoId)
 }

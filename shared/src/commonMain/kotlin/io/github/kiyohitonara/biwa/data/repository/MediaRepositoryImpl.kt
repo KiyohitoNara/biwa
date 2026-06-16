@@ -15,11 +15,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 /** SQLDelight-backed implementation of [MediaRepository]. */
-class MediaRepositoryImpl(driver: SqlDriver) : MediaRepository {
+class MediaRepositoryImpl(
+    driver: SqlDriver,
+) : MediaRepository {
     private val queries = BiwaDatabase(driver).mediaMetadataQueries
 
     override fun getAllMedia(): Flow<List<MediaItem>> =
-        queries.selectAll()
+        queries
+            .selectAll()
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.map { it.toDomain() } }
@@ -52,34 +55,41 @@ class MediaRepositoryImpl(driver: SqlDriver) : MediaRepository {
             queries.deleteById(id)
         }
 
-    override suspend fun updateLastViewedAt(id: String, timestamp: Long) =
-        withContext(Dispatchers.IO) {
-            queries.updateLastViewedAt(last_viewed_at = timestamp, id = id)
-        }
+    override suspend fun updateLastViewedAt(
+        id: String,
+        timestamp: Long,
+    ) = withContext(Dispatchers.IO) {
+        queries.updateLastViewedAt(last_viewed_at = timestamp, id = id)
+    }
 
-    override suspend fun updateThumbnailPath(id: String, path: String) =
-        withContext(Dispatchers.IO) {
-            queries.updateThumbnailPath(thumbnail_path = path, id = id)
-        }
+    override suspend fun updateThumbnailPath(
+        id: String,
+        path: String,
+    ) = withContext(Dispatchers.IO) {
+        queries.updateThumbnailPath(thumbnail_path = path, id = id)
+    }
 
-    override suspend fun updateSortOrder(id: String, sortOrder: Long) =
-        withContext(Dispatchers.IO) {
-            queries.updateSortOrder(sort_order = sortOrder, id = id)
-        }
+    override suspend fun updateSortOrder(
+        id: String,
+        sortOrder: Long,
+    ) = withContext(Dispatchers.IO) {
+        queries.updateSortOrder(sort_order = sortOrder, id = id)
+    }
 
-    private fun Media_metadata.toDomain() = MediaItem(
-        id = id,
-        filePath = file_path,
-        mediaType = MediaType.valueOf(media_type),
-        displayName = display_name,
-        durationMs = duration_ms,
-        widthPx = width_px,
-        heightPx = height_px,
-        fileSizeBytes = file_size_bytes,
-        thumbnailPath = thumbnail_path,
-        takenAt = taken_at,
-        sortOrder = sort_order,
-        lastViewedAt = last_viewed_at,
-        addedAt = added_at,
-    )
+    private fun Media_metadata.toDomain() =
+        MediaItem(
+            id = id,
+            filePath = file_path,
+            mediaType = MediaType.valueOf(media_type),
+            displayName = display_name,
+            durationMs = duration_ms,
+            widthPx = width_px,
+            heightPx = height_px,
+            fileSizeBytes = file_size_bytes,
+            thumbnailPath = thumbnail_path,
+            takenAt = taken_at,
+            sortOrder = sort_order,
+            lastViewedAt = last_viewed_at,
+            addedAt = added_at,
+        )
 }

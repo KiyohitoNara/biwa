@@ -24,18 +24,19 @@ import platform.darwin.dispatch_get_main_queue
 @Composable
 actual fun MediaPicker(
     active: Boolean,
-    onPicked: (List<String>) -> Unit,
+    onPick: (List<String>) -> Unit,
     onCancel: () -> Unit,
 ) {
     if (!active) return
 
-    val onPickedState = rememberUpdatedState(onPicked)
+    val onPickState = rememberUpdatedState(onPick)
     val onCancelState = rememberUpdatedState(onCancel)
-    val delegate = remember {
-        MultiPickerDelegate { paths ->
-            if (paths.isEmpty()) onCancelState.value() else onPickedState.value(paths)
+    val delegate =
+        remember {
+            MultiPickerDelegate { paths ->
+                if (paths.isEmpty()) onCancelState.value() else onPickState.value(paths)
+            }
         }
-    }
     UIKitViewController(
         factory = {
             val config = PHPickerConfiguration()
@@ -49,8 +50,12 @@ actual fun MediaPicker(
 @OptIn(ExperimentalForeignApi::class)
 private class MultiPickerDelegate(
     private val onComplete: (List<String>) -> Unit,
-) : NSObject(), PHPickerViewControllerDelegateProtocol {
-    override fun picker(picker: PHPickerViewController, didFinishPicking: List<*>) {
+) : NSObject(),
+    PHPickerViewControllerDelegateProtocol {
+    override fun picker(
+        picker: PHPickerViewController,
+        didFinishPicking: List<*>,
+    ) {
         val results = (didFinishPicking as? List<PHPickerResult>).orEmpty()
         if (results.isEmpty()) {
             onComplete(emptyList())
@@ -75,11 +80,12 @@ private class MultiPickerDelegate(
         val fileName = sourceUrl.lastPathComponent ?: "media"
         val uniqueName = "${NSUUID().UUIDString()}_$fileName"
         val destPath = "${NSTemporaryDirectory()}$uniqueName"
-        val success = NSFileManager.defaultManager.copyItemAtPath(
-            srcPath = sourceUrl.path ?: return null,
-            toPath = destPath,
-            error = null,
-        )
+        val success =
+            NSFileManager.defaultManager.copyItemAtPath(
+                srcPath = sourceUrl.path ?: return null,
+                toPath = destPath,
+                error = null,
+            )
         return if (success) destPath else null
     }
 }

@@ -4,7 +4,9 @@ import io.github.kiyohitonara.biwa.domain.repository.TagRepository
 import kotlinx.coroutines.flow.Flow
 
 /** Returns the set of media IDs that have all of the specified tags attached (AND logic). */
-class GetMediaIdsWithAllTagsUseCase(private val repository: TagRepository) {
+class GetMediaIdsWithAllTagsUseCase(
+    private val repository: TagRepository,
+) {
     /**
      * Executes the use case for the given [tagIds].
      *

@@ -20,9 +20,15 @@ import org.koin.compose.viewmodel.koinViewModel
 
 private sealed interface Screen {
     data object Library : Screen
-    data class MediaViewer(val id: String) : Screen
+
+    data class MediaViewer(
+        val id: String,
+    ) : Screen
+
     data object TagManagement : Screen
+
     data object Settings : Screen
+
     data object About : Screen
 }
 
@@ -32,11 +38,12 @@ actual fun App() {
     val settingsViewModel: SettingsViewModel = koinViewModel()
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
 
-    val darkTheme = when (settingsState.theme) {
-        AppTheme.LIGHT -> false
-        AppTheme.DARK -> true
-        AppTheme.SYSTEM -> isSystemInDarkTheme()
-    }
+    val darkTheme =
+        when (settingsState.theme) {
+            AppTheme.LIGHT -> false
+            AppTheme.DARK -> true
+            AppTheme.SYSTEM -> isSystemInDarkTheme()
+        }
 
     MaterialTheme(colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme()) {
         val backStack = remember { mutableStateListOf<Screen>(Screen.Library) }
@@ -44,17 +51,19 @@ actual fun App() {
         val goBack: () -> Unit = { if (backStack.size > 1) backStack.removeLastOrNull() }
 
         when (val screen = current) {
-            is Screen.Library -> LibraryScreen(
-                onOpenMediaViewer = { id -> backStack.add(Screen.MediaViewer(id)) },
-                onManageTags = { backStack.add(Screen.TagManagement) },
-                onOpenSettings = { backStack.add(Screen.Settings) },
-            )
+            is Screen.Library ->
+                LibraryScreen(
+                    onOpenMediaViewer = { id -> backStack.add(Screen.MediaViewer(id)) },
+                    onManageTags = { backStack.add(Screen.TagManagement) },
+                    onOpenSettings = { backStack.add(Screen.Settings) },
+                )
             is Screen.MediaViewer -> MediaViewerScreen(mediaId = screen.id, onBack = goBack)
             is Screen.TagManagement -> TagManagementScreen(onBack = goBack)
-            is Screen.Settings -> SettingsScreen(
-                onBack = goBack,
-                onAbout = { backStack.add(Screen.About) },
-            )
+            is Screen.Settings ->
+                SettingsScreen(
+                    onBack = goBack,
+                    onAbout = { backStack.add(Screen.About) },
+                )
             is Screen.About -> AboutScreen(onBack = goBack)
         }
     }
