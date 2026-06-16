@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.ktlint)
     alias(libs.plugins.sqldelight)
 }
 
@@ -68,5 +69,11 @@ sqldelight {
             version = 2
             verifyMigrations = true
         }
+    }
+}
+
+ktlint {
+    filter {
+        exclude { it.file.path.contains("/build/") }
     }
 }

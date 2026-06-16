@@ -111,6 +111,27 @@ iOS builds are driven by Xcode via the `iosApp/` project. Gradle is used only to
 
 Full iOS app builds and device tests are performed from Xcode.
 
+### Lint
+
+Both modules apply the [`org.jlleitschuh.gradle.ktlint`](https://github.com/JLLeitschuh/ktlint-gradle) plugin.
+`composeApp` additionally includes [mrmans0n/compose-rules](https://github.com/mrmans0n/compose-rules)
+as a ktlint ruleset to catch Composable-specific issues (Modifier order, side-effects, naming, ...).
+
+**Check (verify only, fails on violations):**
+```bash
+./gradlew ktlintCheck
+```
+
+**Auto-fix:**
+```bash
+./gradlew ktlintFormat
+```
+
+**Per-module variants:** `:shared:ktlintCheck`, `:composeApp:ktlintCheck` etc.
+
+Generated sources under `*/build/` are excluded via `ktlint { filter { exclude { ... } } }`
+in each module's `build.gradle.kts`.
+
 ### Other
 
 **Generate SQLDelight code:**
