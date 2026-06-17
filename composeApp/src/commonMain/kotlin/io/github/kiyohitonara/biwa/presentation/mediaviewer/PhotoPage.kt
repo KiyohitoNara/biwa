@@ -39,9 +39,10 @@ private const val QUICK_ZOOM_SENSITIVITY_PX = 200f
 @Composable
 fun PhotoPage(
     filePath: String,
-    rotationDegrees: Int = 0,
     onTap: () -> Unit,
-    onZoomChanged: (Boolean) -> Unit = {},
+    modifier: Modifier = Modifier,
+    rotationDegrees: Int = 0,
+    onZoomChange: (Boolean) -> Unit = {},
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -90,7 +91,7 @@ fun PhotoPage(
                 )
             scale = newScale
         }
-        onZoomChanged(scale > 1f)
+        onZoomChange(scale > 1f)
     }
 
     val transformableState =
@@ -98,12 +99,12 @@ fun PhotoPage(
             val newScale = (scale * zoomChange).coerceIn(minScale, MAX_ZOOM)
             scale = newScale
             offset = if (newScale > 1f) offset + panChange else Offset.Zero
-            onZoomChanged(newScale > 1f)
+            onZoomChange(newScale > 1f)
         }
 
     Box(
         modifier =
-            Modifier
+            modifier
                 .fillMaxSize()
                 .onSizeChanged { containerSize = it }
                 .pointerInput(Unit) {
@@ -144,7 +145,7 @@ fun PhotoPage(
                                 if (moved > viewConfiguration.touchSlop) {
                                     dragStarted = true
                                     lastY = change.position.y
-                                    onZoomChanged(true)
+                                    onZoomChange(true)
                                     change.consume()
                                 }
                             }

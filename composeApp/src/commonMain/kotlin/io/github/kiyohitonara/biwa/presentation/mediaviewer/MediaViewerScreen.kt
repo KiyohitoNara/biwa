@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -59,16 +60,19 @@ import org.koin.core.parameter.parametersOf
  * via the platform-specific [VideoPage], which owns its own player. The top
  * toolbar is shared and exposes a Delete action.
  */
+@Suppress("ktlint:compose:vm-forwarding-check")
 @Composable
 fun MediaViewerScreen(
     mediaId: String,
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: MediaViewerViewModel = koinViewModel(parameters = { parametersOf(mediaId) }),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnBack by rememberUpdatedState(onBack)
 
     LaunchedEffect(viewModel.navigateBack) {
-        viewModel.navigateBack.collect { onBack() }
+        viewModel.navigateBack.collect { currentOnBack() }
     }
 
     DisposableEffect(Unit) {
@@ -77,7 +81,7 @@ fun MediaViewerScreen(
 
     Box(
         modifier =
-            Modifier
+            modifier
                 .fillMaxSize()
                 .background(Color.Black),
     ) {
@@ -106,6 +110,7 @@ fun MediaViewerScreen(
     }
 }
 
+@Suppress("ktlint:compose:vm-forwarding-check")
 @Composable
 private fun MediaViewerContent(
     state: MediaViewerUiState.Ready,
@@ -142,9 +147,9 @@ private fun MediaViewerContent(
                 MediaType.PHOTO ->
                     PhotoPage(
                         filePath = item.filePath,
-                        rotationDegrees = if (isActive) rotationDegrees else 0,
                         onTap = viewModel::toggleToolbar,
-                        onZoomChanged = { zoomed -> isZoomed = zoomed },
+                        rotationDegrees = if (isActive) rotationDegrees else 0,
+                        onZoomChange = { zoomed -> isZoomed = zoomed },
                     )
                 MediaType.VIDEO, MediaType.GIF ->
                     VideoPage(

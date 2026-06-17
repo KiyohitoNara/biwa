@@ -11,11 +11,11 @@ import kotlinx.coroutines.flow.asStateFlow
 class FakeUserPreferencesRepository(
     initial: UserPreferences = UserPreferences(),
 ) : UserPreferencesRepository {
-    private val _prefs = MutableStateFlow(initial)
+    private val prefs = MutableStateFlow(initial)
 
-    override fun getPreferences(): Flow<UserPreferences> = _prefs.asStateFlow()
+    override fun getPreferences(): Flow<UserPreferences> = prefs.asStateFlow()
 
     override suspend fun setTheme(theme: AppTheme) {
-        _prefs.value = _prefs.value.copy(theme = theme)
+        prefs.value = prefs.value.copy(theme = theme)
     }
 }

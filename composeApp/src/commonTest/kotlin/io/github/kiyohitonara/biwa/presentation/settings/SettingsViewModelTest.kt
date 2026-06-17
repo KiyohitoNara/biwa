@@ -65,11 +65,11 @@ class SettingsViewModelTest {
 }
 
 private class FakeUserPreferencesRepository : UserPreferencesRepository {
-    private val _prefs = MutableStateFlow(UserPreferences())
+    private val prefs = MutableStateFlow(UserPreferences())
 
-    override fun getPreferences(): Flow<UserPreferences> = _prefs.asStateFlow()
+    override fun getPreferences(): Flow<UserPreferences> = prefs.asStateFlow()
 
     override suspend fun setTheme(theme: AppTheme) {
-        _prefs.value = _prefs.value.copy(theme = theme)
+        prefs.value = prefs.value.copy(theme = theme)
     }
 }

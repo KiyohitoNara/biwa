@@ -52,6 +52,7 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun TagManagementScreen(
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: TagManagementViewModel = koinViewModel { parametersOf(null) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -67,6 +68,7 @@ fun TagManagementScreen(
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text("Tags") },

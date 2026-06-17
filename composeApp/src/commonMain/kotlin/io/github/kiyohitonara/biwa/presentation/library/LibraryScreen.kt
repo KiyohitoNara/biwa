@@ -54,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -85,6 +86,7 @@ fun LibraryScreen(
     onOpenMediaViewer: (String) -> Unit,
     onManageTags: () -> Unit,
     onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -107,15 +109,17 @@ fun LibraryScreen(
         }
     }
 
+    val currentOnOpenMediaViewer by rememberUpdatedState(onOpenMediaViewer)
     LaunchedEffect(viewModel.navEffect) {
         viewModel.navEffect.collect { effect ->
             when (effect) {
-                is LibraryNavEffect.OpenMediaViewer -> onOpenMediaViewer(effect.id)
+                is LibraryNavEffect.OpenMediaViewer -> currentOnOpenMediaViewer(effect.id)
             }
         }
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text("Library") },
@@ -175,7 +179,7 @@ fun LibraryScreen(
             TagFilterChipsRow(
                 availableTags = successState?.availableTags ?: emptyList(),
                 activeTagIds = successState?.activeTagIds ?: emptySet(),
-                onTagToggled = viewModel::toggleTag,
+                onTagToggle = viewModel::toggleTag,
             )
 
             Box(modifier = Modifier.fillMaxSize()) {
@@ -213,7 +217,7 @@ fun LibraryScreen(
 
     if (showSortSheet) {
         SortSelectionSheet(
-            onSortSelected = {
+            onSortSelect = {
                 viewModel.setSortOrder(it)
                 showSortSheet = false
             },
@@ -237,7 +241,7 @@ fun LibraryScreen(
 private fun TagFilterChipsRow(
     availableTags: List<Tag>,
     activeTagIds: Set<String>,
-    onTagToggled: (String) -> Unit,
+    onTagToggle: (String) -> Unit,
 ) {
     if (availableTags.isEmpty()) return
     Row(
@@ -252,7 +256,7 @@ private fun TagFilterChipsRow(
         availableTags.forEach { tag ->
             FilterChip(
                 selected = tag.id in activeTagIds,
-                onClick = { onTagToggled(tag.id) },
+                onClick = { onTagToggle(tag.id) },
                 label = { Text(tag.name) },
             )
         }
@@ -262,7 +266,7 @@ private fun TagFilterChipsRow(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SortSelectionSheet(
-    onSortSelected: (SortOrder) -> Unit,
+    onSortSelect: (SortOrder) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -279,7 +283,7 @@ private fun SortSelectionSheet(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .clickable { onSortSelected(order) }
+                        .clickable { onSortSelect(order) }
                         .padding(horizontal = 24.dp, vertical = 12.dp),
             )
         }

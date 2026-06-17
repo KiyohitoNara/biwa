@@ -35,11 +35,13 @@ import org.koin.compose.viewmodel.koinViewModel
 fun SettingsScreen(
     onBack: () -> Unit,
     onAbout: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },

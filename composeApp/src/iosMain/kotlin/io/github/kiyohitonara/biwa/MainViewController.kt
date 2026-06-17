@@ -7,6 +7,7 @@ import io.github.kiyohitonara.biwa.di.viewModelModule
 import org.koin.compose.KoinApplication
 
 /** iOS entry point that initializes Koin and hosts the shared Compose UI. */
+@Suppress("ktlint:standard:function-naming")
 fun MainViewController() =
     ComposeUIViewController {
         KoinApplication(application = {

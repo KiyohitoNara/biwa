@@ -16,6 +16,7 @@ import platform.Foundation.NSURL
 
 /** iOS implementation using AVPlayerViewController. Auto-plays only when the page is active. */
 @OptIn(ExperimentalForeignApi::class)
+@Suppress("ktlint:compose:modifier-missing-check")
 @Composable
 actual fun VideoPage(
     item: MediaItem,

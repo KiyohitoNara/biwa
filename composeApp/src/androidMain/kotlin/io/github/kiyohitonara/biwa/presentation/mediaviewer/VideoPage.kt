@@ -71,6 +71,7 @@ private val BrandOrange = Color(0xFFF4A44A)
  * scrolled off-screen the page composable is disposed and the player released.
  */
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("ktlint:compose:modifier-missing-check")
 @Composable
 actual fun VideoPage(
     item: MediaItem,
@@ -206,7 +207,7 @@ actual fun VideoPage(
     if (showSpeedSheet) {
         SpeedSelectionSheet(
             currentSpeed = state.playbackSpeed,
-            onSpeedSelected = { speed ->
+            onSpeedSelect = { speed ->
                 player.playbackParameters = PlaybackParameters(speed)
                 viewModel.setPlaybackSpeed(speed)
                 showSpeedSheet = false
@@ -414,7 +415,7 @@ private fun AbRepeatControls(
 @Composable
 private fun SpeedSelectionSheet(
     currentSpeed: Float,
-    onSpeedSelected: (Float) -> Unit,
+    onSpeedSelect: (Float) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -438,7 +439,7 @@ private fun SpeedSelectionSheet(
             PLAYBACK_SPEEDS.forEach { speed ->
                 FilterChip(
                     selected = speed == currentSpeed,
-                    onClick = { onSpeedSelected(speed) },
+                    onClick = { onSpeedSelect(speed) },
                     label = {
                         val label = if (speed == speed.toLong().toFloat()) "${speed.toLong()}x" else "${speed}x"
                         Text(label)

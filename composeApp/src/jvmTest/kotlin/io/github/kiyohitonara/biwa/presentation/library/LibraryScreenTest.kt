@@ -7,11 +7,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
-import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
-import io.github.kiyohitonara.biwa.domain.model.MediaFileMetadata
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
-import io.github.kiyohitonara.biwa.domain.model.MediaType
-import io.github.kiyohitonara.biwa.domain.storage.FileStorage
 import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
@@ -30,50 +26,55 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class LibraryScreenTest {
-
     @Test
-    fun `clicking More options opens overflow menu with Settings item`() = runComposeUiTest {
-        setContent {
-            LibraryScreen(
-                onOpenMediaViewer = {},
-                onManageTags = {},
-                onOpenSettings = {},
-                viewModel = buildTestViewModel(),
-            )
+    fun `clicking More options opens overflow menu with Settings item`() {
+        runComposeUiTest {
+            setContent {
+                LibraryScreen(
+                    onOpenMediaViewer = {},
+                    onManageTags = {},
+                    onOpenSettings = {},
+                    viewModel = buildTestViewModel(),
+                )
+            }
+            onNodeWithContentDescription("More options").performClick()
+            onNodeWithText("Settings").assertIsDisplayed()
         }
-        onNodeWithContentDescription("More options").performClick()
-        onNodeWithText("Settings").assertIsDisplayed()
     }
 
     @Test
-    fun `clicking Settings in overflow menu invokes onOpenSettings callback`() = runComposeUiTest {
-        var settingsOpened = false
-        setContent {
-            LibraryScreen(
-                onOpenMediaViewer = {},
-                onManageTags = {},
-                onOpenSettings = { settingsOpened = true },
-                viewModel = buildTestViewModel(),
-            )
+    fun `clicking Settings in overflow menu invokes onOpenSettings callback`() {
+        runComposeUiTest {
+            var settingsOpened = false
+            setContent {
+                LibraryScreen(
+                    onOpenMediaViewer = {},
+                    onManageTags = {},
+                    onOpenSettings = { settingsOpened = true },
+                    viewModel = buildTestViewModel(),
+                )
+            }
+            onNodeWithContentDescription("More options").performClick()
+            onNodeWithText("Settings").performClick()
+            assertTrue(settingsOpened)
         }
-        onNodeWithContentDescription("More options").performClick()
-        onNodeWithText("Settings").performClick()
-        assertTrue(settingsOpened)
     }
 
     @Test
-    fun `overflow menu is dismissed after clicking Settings`() = runComposeUiTest {
-        setContent {
-            LibraryScreen(
-                onOpenMediaViewer = {},
-                onManageTags = {},
-                onOpenSettings = {},
-                viewModel = buildTestViewModel(),
-            )
+    fun `overflow menu is dismissed after clicking Settings`() {
+        runComposeUiTest {
+            setContent {
+                LibraryScreen(
+                    onOpenMediaViewer = {},
+                    onManageTags = {},
+                    onOpenSettings = {},
+                    viewModel = buildTestViewModel(),
+                )
+            }
+            onNodeWithContentDescription("More options").performClick()
+            onNodeWithText("Settings").performClick()
+            assertTrue(onAllNodesWithText("Settings").fetchSemanticsNodes().isEmpty())
         }
-        onNodeWithContentDescription("More options").performClick()
-        onNodeWithText("Settings").performClick()
-        assertTrue(onAllNodesWithText("Settings").fetchSemanticsNodes().isEmpty())
     }
 
     private fun buildTestViewModel(): LibraryViewModel {
@@ -82,16 +83,8 @@ class LibraryScreenTest {
         val fakeThumbnailRepository = FakeThumbnailRepository()
         val fakeTagRepository = FakeTagRepository()
         val fakePreferencesRepository = FakeUserPreferencesRepository()
-        val fakeFileStorage = object : FileStorage {
-            override suspend fun copyToInternalStorage(sourceUri: String, fileName: String) = ""
-            override suspend fun deleteFromInternalStorage(filePath: String) {}
-        }
-        val fakeMetadataExtractor = object : MediaMetadataExtractor {
-            override suspend fun extract(sourceUri: String) = MediaFileMetadata(
-                fileName = sourceUri.substringAfterLast("/"),
-                mediaType = MediaType.PHOTO,
-            )
-        }
+        val fakeFileStorage = FakeFileStorage()
+        val fakeMetadataExtractor = FakeMediaMetadataExtractor()
         return LibraryViewModel(
             getAllMediaUseCase = GetAllMediaUseCase(fakeMediaRepository),
             deleteMediaUseCase = DeleteMediaUseCase(fakeMediaRepository, fakeFileStorage),

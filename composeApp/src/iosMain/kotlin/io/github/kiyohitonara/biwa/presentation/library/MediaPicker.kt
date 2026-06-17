@@ -21,6 +21,7 @@ import platform.darwin.dispatch_get_main_queue
 
 /** iOS implementation backed by [PHPickerViewController] with unlimited selection. */
 @OptIn(ExperimentalForeignApi::class)
+@Suppress("ktlint:compose:modifier-missing-check")
 @Composable
 actual fun MediaPicker(
     active: Boolean,
