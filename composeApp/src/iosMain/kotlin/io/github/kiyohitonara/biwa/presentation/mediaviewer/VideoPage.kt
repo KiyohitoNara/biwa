@@ -10,7 +10,6 @@ import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.pause
-import platform.AVFoundation.play
 import platform.AVKit.AVPlayerViewController
 import platform.Foundation.NSURL
 
@@ -23,6 +22,7 @@ actual fun VideoPage(
     isActive: Boolean,
     state: MediaViewerUiState.Ready,
     viewModel: MediaViewerViewModel,
+    onZoomChange: (Boolean) -> Unit,
 ) {
     val controller =
         remember(item.id) {

@@ -157,6 +157,7 @@ private fun MediaViewerContent(
                         isActive = isActive,
                         state = state,
                         viewModel = viewModel,
+                        onZoomChange = { zoomed -> isZoomed = zoomed },
                     )
             }
         }
@@ -326,4 +327,5 @@ expect fun VideoPage(
     isActive: Boolean,
     state: MediaViewerUiState.Ready,
     viewModel: MediaViewerViewModel,
+    onZoomChange: (Boolean) -> Unit,
 )

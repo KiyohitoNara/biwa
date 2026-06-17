@@ -289,21 +289,112 @@ private struct VideoPlayerPage: View {
     let isActive: Bool
     @ObservedObject var bridge: MediaViewerViewModelBridge
 
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    // Tracks the time of the most recent finger-up that was a tap (no drag).
+    // Used to recognise "tap → second touch held → drag" as a quick-zoom gesture.
+    @State private var lastTapEnded: Date?
+    @State private var quickZoomBase: CGFloat?
+    @State private var quickZoomStartY: CGFloat = 0
+
+    private let doubleTapWindow: TimeInterval = 0.3
+    private let touchSlop: CGFloat = 10
+    // 200pt of vertical drag = an e-fold (~2.72x) scale change; matches PhotoPage.
+    private let quickZoomSensitivity: CGFloat = 200
+    private let maxZoom: CGFloat = 8
+
+    private var isZoomed: Bool { scale > 1 }
+
     var body: some View {
         VideoPlayerRepresentable(
             url: URL(fileURLWithPath: item.filePath),
             isActive: isActive,
+            showsControls: !isZoomed,
             onPositionChanged: { bridge.updatePosition($0) },
             onDurationChanged: { bridge.updateDuration($0) },
             onPlayingStateChanged: { bridge.updatePlayingState($0) }
         )
+        .scaleEffect(scale)
+        .offset(offset)
         .ignoresSafeArea()
+        .gesture(
+            MagnificationGesture()
+                .onChanged { value in scale = clampScale(lastScale * value) }
+                .onEnded { _ in
+                    lastScale = scale
+                    if !isZoomed {
+                        offset = .zero
+                        lastOffset = .zero
+                    }
+                }
+        )
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    if quickZoomBase == nil,
+                       let firstTap = lastTapEnded,
+                       Date().timeIntervalSince(firstTap) < doubleTapWindow,
+                       abs(value.translation.height) > touchSlop,
+                       abs(value.translation.height) > abs(value.translation.width) {
+                        quickZoomBase = scale
+                        quickZoomStartY = value.startLocation.y
+                        lastTapEnded = nil
+                    }
+                    if let base = quickZoomBase {
+                        let dy = value.location.y - quickZoomStartY
+                        scale = clampScale(base * exp(dy / quickZoomSensitivity))
+                        lastScale = scale
+                    } else if isZoomed {
+                        offset = CGSize(
+                            width: lastOffset.width + value.translation.width,
+                            height: lastOffset.height + value.translation.height
+                        )
+                    }
+                }
+                .onEnded { value in
+                    let dist = hypot(value.translation.width, value.translation.height)
+                    if quickZoomBase == nil && dist < touchSlop {
+                        if let prev = lastTapEnded,
+                           Date().timeIntervalSince(prev) < doubleTapWindow {
+                            lastTapEnded = nil
+                        } else {
+                            lastTapEnded = Date()
+                        }
+                    }
+                    quickZoomBase = nil
+                    lastOffset = offset
+                    if !isZoomed {
+                        offset = .zero
+                        lastOffset = .zero
+                    }
+                }
+        )
+        .onTapGesture(count: 2) {
+            withAnimation {
+                if scale > 1 {
+                    scale = 1
+                    offset = .zero
+                } else {
+                    scale = 2
+                }
+                lastScale = scale
+                lastOffset = offset
+            }
+        }
+    }
+
+    private func clampScale(_ value: CGFloat) -> CGFloat {
+        min(max(value, 1), maxZoom)
     }
 }
 
 private struct VideoPlayerRepresentable: UIViewControllerRepresentable {
     let url: URL
     let isActive: Bool
+    let showsControls: Bool
     let onPositionChanged: (Int64) -> Void
     let onDurationChanged: (Int64) -> Void
     let onPlayingStateChanged: (Bool) -> Void
@@ -312,7 +403,7 @@ private struct VideoPlayerRepresentable: UIViewControllerRepresentable {
         let player = AVPlayer(url: url)
         let controller = AVPlayerViewController()
         controller.player = player
-        controller.showsPlaybackControls = true
+        controller.showsPlaybackControls = showsControls
 
         let coordinator = context.coordinator
         coordinator.player = player
@@ -328,6 +419,7 @@ private struct VideoPlayerRepresentable: UIViewControllerRepresentable {
         if !isActive {
             controller.player?.pause()
         }
+        controller.showsPlaybackControls = showsControls
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }

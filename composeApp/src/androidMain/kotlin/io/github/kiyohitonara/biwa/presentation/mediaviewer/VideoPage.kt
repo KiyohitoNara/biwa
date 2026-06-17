@@ -1,11 +1,15 @@
 package io.github.kiyohitonara.biwa.presentation.mediaviewer
 
+import android.view.LayoutInflater
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,8 +40,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,23 +52,37 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import io.github.kiyohitonara.biwa.R
 import io.github.kiyohitonara.biwa.domain.model.AbPoint
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.exp
 import androidx.media3.common.MediaItem as Media3MediaItem
 
 private val PLAYBACK_SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
 private const val FRAME_STEP_MS = 33L
 private const val CONTROLS_HIDE_DELAY_MS = 5_000L
 private val BrandOrange = Color(0xFFF4A44A)
+
+private const val MAX_ZOOM = 8f
+private const val DOUBLE_TAP_ZOOM = 2f
+
+// Pixels of vertical drag that produce an e-fold (~2.72x) change in scale.
+private const val QUICK_ZOOM_SENSITIVITY_PX = 200f
 
 /**
  * Android implementation of a single video / GIF page backed by ExoPlayer.
@@ -78,10 +98,16 @@ actual fun VideoPage(
     isActive: Boolean,
     state: MediaViewerUiState.Ready,
     viewModel: MediaViewerViewModel,
+    onZoomChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val player = remember(item.id) { ExoPlayer.Builder(context).build() }
     var showSpeedSheet by remember { mutableStateOf(false) }
+
+    var scale by remember(item.id) { mutableFloatStateOf(1f) }
+    var offset by remember(item.id) { mutableStateOf(Offset.Zero) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    val isZoomed = scale > 1f
 
     // The state-derived fields only apply to this video while it is the current item.
     val isCurrent = state.items.getOrNull(state.currentIndex)?.id == item.id
@@ -151,32 +177,115 @@ actual fun VideoPage(
         }
     }
 
+    val currentOnZoomChange by rememberUpdatedState(onZoomChange)
+    LaunchedEffect(isZoomed) { currentOnZoomChange(isZoomed) }
+
+    fun setZoom(
+        newScaleUnclamped: Float,
+        anchor: Offset,
+    ) {
+        val newScale = newScaleUnclamped.coerceIn(1f, MAX_ZOOM)
+        if (newScale <= 1f) {
+            scale = newScale
+            offset = Offset.Zero
+        } else {
+            val ratio = newScale / scale.coerceAtLeast(0.0001f)
+            val cx = containerSize.width / 2f
+            val cy = containerSize.height / 2f
+            offset =
+                Offset(
+                    (anchor.x - cx) * (1f - ratio) + offset.x * ratio,
+                    (anchor.y - cy) * (1f - ratio) + offset.y * ratio,
+                )
+            scale = newScale
+        }
+    }
+
+    val transformableState =
+        rememberTransformableState { zoomChange, panChange, _ ->
+            val newScale = (scale * zoomChange).coerceIn(1f, MAX_ZOOM)
+            scale = newScale
+            offset = if (newScale > 1f) offset + panChange else Offset.Zero
+        }
+
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() },
-                    onClick = {
-                        viewModel.toggleToolbar()
-                        viewModel.toggleControls()
-                    },
-                ),
+                .onSizeChanged { containerSize = it }
+                .pointerInput(item.id) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        val firstUp =
+                            withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                waitForUpOrCancellation()
+                            } ?: return@awaitEachGesture
+
+                        val secondDown =
+                            withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
+                                awaitFirstDown(requireUnconsumed = false)
+                            }
+                        if (secondDown == null) {
+                            viewModel.toggleToolbar()
+                            viewModel.toggleControls()
+                            return@awaitEachGesture
+                        }
+
+                        val anchor = secondDown.position
+                        var dragStarted = false
+                        var lastY = secondDown.position.y
+
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Main)
+                            val change = event.changes.firstOrNull { it.id == secondDown.id } ?: break
+
+                            if (!change.pressed) {
+                                if (!dragStarted) {
+                                    val target = if (scale > 1f) 1f else DOUBLE_TAP_ZOOM
+                                    setZoom(target, anchor)
+                                }
+                                break
+                            }
+
+                            if (!dragStarted) {
+                                val moved = (change.position - anchor).getDistance()
+                                if (moved > viewConfiguration.touchSlop) {
+                                    dragStarted = true
+                                    lastY = change.position.y
+                                    change.consume()
+                                }
+                            }
+
+                            if (dragStarted) {
+                                val dy = change.position.y - lastY
+                                lastY = change.position.y
+                                setZoom(scale * exp(dy / QUICK_ZOOM_SENSITIVITY_PX), anchor)
+                                change.consume()
+                            }
+                        }
+                    }
+                }.transformable(state = transformableState, lockRotationOnZoomPan = true),
     ) {
         AndroidView(
             factory = { ctx ->
-                PlayerView(ctx).apply {
+                (LayoutInflater.from(ctx).inflate(R.layout.zoomable_player_view, null) as PlayerView).apply {
                     this.player = player
-                    useController = false
                 }
             },
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offset.x,
+                        translationY = offset.y,
+                    ),
         )
 
         if (isCurrent) {
             AnimatedVisibility(
-                visible = state.isControlsVisible,
+                visible = state.isControlsVisible && !isZoomed,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier.fillMaxSize(),
