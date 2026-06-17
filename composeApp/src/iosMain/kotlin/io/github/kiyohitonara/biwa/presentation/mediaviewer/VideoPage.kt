@@ -14,7 +14,7 @@ import platform.AVFoundation.play
 import platform.AVKit.AVPlayerViewController
 import platform.Foundation.NSURL
 
-/** iOS implementation using AVPlayerViewController. Auto-plays only when the page is active. */
+/** iOS implementation using AVPlayerViewController. Stays paused until the user taps play. */
 @OptIn(ExperimentalForeignApi::class)
 @Suppress("ktlint:compose:modifier-missing-check")
 @Composable
@@ -32,7 +32,7 @@ actual fun VideoPage(
         }
 
     LaunchedEffect(isActive) {
-        if (isActive) controller.player?.play() else controller.player?.pause()
+        if (!isActive) controller.player?.pause()
     }
 
     UIKitViewController(

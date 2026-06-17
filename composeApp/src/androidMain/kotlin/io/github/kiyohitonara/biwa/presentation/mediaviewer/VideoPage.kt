@@ -99,9 +99,10 @@ actual fun VideoPage(
         }
     }
 
-    // Auto-play only when the page is active, pause otherwise.
+    // Pause when the page leaves the viewport. Don't auto-play on activation —
+    // the user starts playback via the play button.
     LaunchedEffect(isActive) {
-        if (isActive) player.play() else player.pause()
+        if (!isActive) player.pause()
     }
 
     DisposableEffect(player) {

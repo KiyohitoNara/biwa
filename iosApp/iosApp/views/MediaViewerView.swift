@@ -325,9 +325,7 @@ private struct VideoPlayerRepresentable: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
-        if isActive {
-            controller.player?.play()
-        } else {
+        if !isActive {
             controller.player?.pause()
         }
     }
