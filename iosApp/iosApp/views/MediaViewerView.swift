@@ -290,10 +290,22 @@ private struct VideoPlayerPage: View {
     let rotationDegrees: Int
     @ObservedObject var bridge: MediaViewerViewModelBridge
 
+    @State private var player: AVPlayer
+    @State private var containerSize: CGSize = .zero
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
+
+    private let seekStepMs: Int64 = 10_000
+
+    init(item: MediaItem, isActive: Bool, rotationDegrees: Int, bridge: MediaViewerViewModelBridge) {
+        self.item = item
+        self.isActive = isActive
+        self.rotationDegrees = rotationDegrees
+        _bridge = ObservedObject(wrappedValue: bridge)
+        _player = State(initialValue: AVPlayer(url: URL(fileURLWithPath: item.filePath)))
+    }
 
     // Tracks the time of the most recent finger-up that was a tap (no drag).
     // Used to recognise "tap → second touch held → drag" as a quick-zoom gesture.
@@ -311,12 +323,19 @@ private struct VideoPlayerPage: View {
 
     var body: some View {
         VideoPlayerRepresentable(
-            url: URL(fileURLWithPath: item.filePath),
+            player: player,
             isActive: isActive,
             showsControls: !isZoomed,
             onPositionChanged: { bridge.updatePosition($0) },
             onDurationChanged: { bridge.updateDuration($0) },
             onPlayingStateChanged: { bridge.updatePlayingState($0) }
+        )
+        .background(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { containerSize = proxy.size }
+                    .onChange(of: proxy.size) { _, newSize in containerSize = newSize }
+            }
         )
         .scaleEffect(scale)
         .offset(offset)
@@ -374,16 +393,23 @@ private struct VideoPlayerPage: View {
                     }
                 }
         )
-        .onTapGesture(count: 2) {
-            withAnimation {
-                if scale > 1 {
-                    scale = 1
-                    offset = .zero
-                } else {
-                    scale = 2
+        .onTapGesture(count: 2, coordinateSpace: .local) { location in
+            let width = containerSize.width
+            if width > 0 && location.x < width / 3 {
+                seekBy(-seekStepMs)
+            } else if width > 0 && location.x > width * 2 / 3 {
+                seekBy(seekStepMs)
+            } else {
+                withAnimation {
+                    if scale > 1 {
+                        scale = 1
+                        offset = .zero
+                    } else {
+                        scale = 2
+                    }
+                    lastScale = scale
+                    lastOffset = offset
                 }
-                lastScale = scale
-                lastOffset = offset
             }
         }
     }
@@ -391,10 +417,20 @@ private struct VideoPlayerPage: View {
     private func clampScale(_ value: CGFloat) -> CGFloat {
         min(max(value, 1), maxZoom)
     }
+
+    private func seekBy(_ deltaMs: Int64) {
+        let currentSeconds = CMTimeGetSeconds(player.currentTime())
+        guard currentSeconds.isFinite else { return }
+        let durationSeconds = player.currentItem.map { CMTimeGetSeconds($0.duration) }
+        let upperBound = (durationSeconds?.isFinite == true) ? durationSeconds! : .greatestFiniteMagnitude
+        let target = min(max(currentSeconds + Double(deltaMs) / 1000, 0), upperBound)
+        player.seek(to: CMTime(seconds: target, preferredTimescale: 600))
+        bridge.updatePosition(Int64(target * 1000))
+    }
 }
 
 private struct VideoPlayerRepresentable: UIViewControllerRepresentable {
-    let url: URL
+    let player: AVPlayer
     let isActive: Bool
     let showsControls: Bool
     let onPositionChanged: (Int64) -> Void
@@ -402,7 +438,6 @@ private struct VideoPlayerRepresentable: UIViewControllerRepresentable {
     let onPlayingStateChanged: (Bool) -> Void
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
-        let player = AVPlayer(url: url)
         let controller = AVPlayerViewController()
         controller.player = player
         controller.showsPlaybackControls = showsControls

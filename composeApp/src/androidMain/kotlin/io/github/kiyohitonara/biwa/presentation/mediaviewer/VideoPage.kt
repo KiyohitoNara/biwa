@@ -75,6 +75,7 @@ import androidx.media3.common.MediaItem as Media3MediaItem
 
 private val PLAYBACK_SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
 private const val FRAME_STEP_MS = 33L
+private const val SEEK_STEP_MS = 10_000L
 private const val CONTROLS_HIDE_DELAY_MS = 5_000L
 private val BrandOrange = Color(0xFFF4A44A)
 
@@ -181,6 +182,12 @@ actual fun VideoPage(
     val currentOnZoomChange by rememberUpdatedState(onZoomChange)
     LaunchedEffect(isZoomed) { currentOnZoomChange(isZoomed) }
 
+    fun seekBy(deltaMs: Long) {
+        val newPos = (player.currentPosition + deltaMs).coerceIn(0L, player.duration.coerceAtLeast(0L))
+        player.seekTo(newPos)
+        viewModel.updatePosition(newPos)
+    }
+
     fun setZoom(
         newScaleUnclamped: Float,
         anchor: Offset,
@@ -242,8 +249,15 @@ actual fun VideoPage(
 
                             if (!change.pressed) {
                                 if (!dragStarted) {
-                                    val target = if (scale > 1f) 1f else DOUBLE_TAP_ZOOM
-                                    setZoom(target, anchor)
+                                    val width = containerSize.width
+                                    when {
+                                        width > 0 && anchor.x < width / 3f -> seekBy(-SEEK_STEP_MS)
+                                        width > 0 && anchor.x > width * 2f / 3f -> seekBy(SEEK_STEP_MS)
+                                        else -> {
+                                            val target = if (scale > 1f) 1f else DOUBLE_TAP_ZOOM
+                                            setZoom(target, anchor)
+                                        }
+                                    }
                                 }
                                 break
                             }
