@@ -157,6 +157,7 @@ private fun MediaViewerContent(
                         isActive = isActive,
                         state = state,
                         viewModel = viewModel,
+                        rotationDegrees = if (isActive) rotationDegrees else 0,
                         onZoomChange = { zoomed -> isZoomed = zoomed },
                     )
             }
@@ -168,7 +169,7 @@ private fun MediaViewerContent(
             onBack = onBack,
             onEditTags = { showTagSheet = true },
             onRotate = { rotationDegrees = (rotationDegrees + 90) % 360 },
-            rotateEnabled = currentMediaType == MediaType.PHOTO,
+            rotateEnabled = currentMediaType != null,
             onDelete = viewModel::deleteCurrentMedia,
             modifier = Modifier.align(Alignment.TopStart),
         )
@@ -327,5 +328,6 @@ expect fun VideoPage(
     isActive: Boolean,
     state: MediaViewerUiState.Ready,
     viewModel: MediaViewerViewModel,
+    rotationDegrees: Int,
     onZoomChange: (Boolean) -> Unit,
 )

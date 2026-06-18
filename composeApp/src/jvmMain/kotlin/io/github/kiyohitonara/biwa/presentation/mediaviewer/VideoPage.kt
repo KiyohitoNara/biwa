@@ -10,5 +10,7 @@ actual fun VideoPage(
     isActive: Boolean,
     state: MediaViewerUiState.Ready,
     viewModel: MediaViewerViewModel,
+    rotationDegrees: Int,
+    onZoomChange: (Boolean) -> Unit,
 ) {
 }

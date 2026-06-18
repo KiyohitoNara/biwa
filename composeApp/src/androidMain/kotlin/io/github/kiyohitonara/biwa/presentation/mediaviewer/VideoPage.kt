@@ -98,6 +98,7 @@ actual fun VideoPage(
     isActive: Boolean,
     state: MediaViewerUiState.Ready,
     viewModel: MediaViewerViewModel,
+    rotationDegrees: Int,
     onZoomChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
@@ -280,6 +281,7 @@ actual fun VideoPage(
                         scaleY = scale,
                         translationX = offset.x,
                         translationY = offset.y,
+                        rotationZ = rotationDegrees.toFloat(),
                     ),
         )
 
