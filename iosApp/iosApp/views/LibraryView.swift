@@ -1,12 +1,12 @@
 import SwiftUI
 import PhotosUI
-import ComposeApp
+import Shared
 
 @MainActor
 private final class LibraryViewModelBridge: ObservableObject {
     let vm: LibraryViewModel
-    @Published private(set) var items: [SharedMediaItem] = []
-    @Published private(set) var availableTags: [SharedTag] = []
+    @Published private(set) var items: [MediaItem] = []
+    @Published private(set) var availableTags: [MediaTag] = []
     @Published private(set) var activeTagIds: Set<String> = []
     @Published private(set) var isAdding: Bool = false
     @Published var errorMessage: String?
@@ -73,7 +73,7 @@ private final class LibraryViewModelBridge: ObservableObject {
         addErrorTask?.cancel()
     }
 
-    func setSortOrder(_ order: SharedSortOrder) { vm.setSortOrder(sortOrder: order) }
+    func setSortOrder(_ order: Shared.SortOrder) { vm.setSortOrder(sortOrder: order) }
     func toggleTag(_ id: String) { vm.toggleTag(tagId: id) }
     func reorderMedia(from: Int, to: Int) { vm.reorderMedia(fromIndex: Int32(from), toIndex: Int32(to)) }
     func deleteMedia(_ id: String) { vm.deleteMedia(id: id) }
@@ -89,7 +89,7 @@ struct LibraryView: View {
     @StateObject private var bridge: LibraryViewModelBridge
     @State private var showSortSheet = false
     @State private var showPicker = false
-    @State private var contextItem: SharedMediaItem?
+    @State private var contextItem: MediaItem?
 
     init(
         onOpenMediaViewer: @escaping (String) -> Void,
@@ -210,7 +210,7 @@ struct LibraryView: View {
 }
 
 private struct TagFilterRow: View {
-    let tags: [SharedTag]
+    let tags: [MediaTag]
     let activeTagIds: Set<String>
     let onToggle: (String) -> Void
 
@@ -238,10 +238,10 @@ private struct TagFilterRow: View {
 }
 
 private struct MediaGrid: View {
-    let items: [SharedMediaItem]
+    let items: [MediaItem]
     let activeTagCount: Int
-    let onTap: (SharedMediaItem) -> Void
-    let onLongPress: (SharedMediaItem) -> Void
+    let onTap: (MediaItem) -> Void
+    let onLongPress: (MediaItem) -> Void
     let onReorder: (Int, Int) -> Void
 
     @State private var draggedId: String?
@@ -282,7 +282,7 @@ private struct MediaGrid: View {
 private struct DragDropModifier: ViewModifier {
     let enabled: Bool
     let itemId: String
-    let items: [SharedMediaItem]
+    let items: [MediaItem]
     @Binding var draggedId: String?
     @Binding var dropTargetId: String?
     let onReorder: (Int, Int) -> Void
@@ -316,7 +316,7 @@ private struct DragDropModifier: ViewModifier {
 }
 
 private struct MediaGridItem: View {
-    let item: SharedMediaItem
+    let item: MediaItem
     let isDragged: Bool
     let isDropTarget: Bool
     let isDragActive: Bool
@@ -352,7 +352,7 @@ private struct MediaGridItem: View {
 }
 
 private struct MediaBadge: View {
-    let item: SharedMediaItem
+    let item: MediaItem
 
     var body: some View {
         switch item.mediaType {
@@ -388,8 +388,8 @@ private struct MediaBadge: View {
 @MainActor
 private final class MediaContextBridge: ObservableObject {
     private let vm: TagManagementViewModel
-    @Published private(set) var allTags: [SharedTag] = []
-    @Published private(set) var mediaTags: [SharedTag] = []
+    @Published private(set) var allTags: [MediaTag] = []
+    @Published private(set) var mediaTags: [MediaTag] = []
     private var stateTask: Task<Void, Never>?
 
     init(mediaId: String) {
@@ -413,7 +413,7 @@ private final class MediaContextBridge: ObservableObject {
 }
 
 private struct TagToggleRow: View {
-    let tag: SharedTag
+    let tag: MediaTag
     let isActive: Bool
     let onToggle: () -> Void
 
@@ -433,13 +433,13 @@ private struct TagToggleRow: View {
 }
 
 private struct MediaContextSheet: View {
-    let item: SharedMediaItem
+    let item: MediaItem
     let onDelete: () -> Void
     let onDismiss: () -> Void
 
     @StateObject private var tagBridge: MediaContextBridge
 
-    init(item: SharedMediaItem, onDelete: @escaping () -> Void, onDismiss: @escaping () -> Void) {
+    init(item: MediaItem, onDelete: @escaping () -> Void, onDismiss: @escaping () -> Void) {
         self.item = item
         self.onDelete = onDelete
         self.onDismiss = onDismiss
@@ -479,14 +479,14 @@ private struct MediaContextSheet: View {
 }
 
 private struct SortSheet: View {
-    let onSelect: (SharedSortOrder) -> Void
+    let onSelect: (Shared.SortOrder) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List {
-                ForEach(SharedSortOrder.allCases, id: \.self) { order in
+                ForEach(Shared.SortOrder.allCases, id: \.self) { order in
                     Button {
                         onSelect(order)
                         dismiss()
@@ -505,7 +505,7 @@ private struct SortSheet: View {
         }
     }
 
-    private func sortLabel(_ order: SharedSortOrder) -> String {
+    private func sortLabel(_ order: Shared.SortOrder) -> String {
         switch order {
         case .addedAtDesc: return "Added (newest first)"
         case .addedAtAsc: return "Added (oldest first)"

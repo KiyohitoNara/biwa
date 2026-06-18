@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.sqldelight)
+    alias(libs.plugins.skie)
 }
 
 kotlin {
@@ -23,6 +24,7 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
+            binaryOption("bundleId", "io.github.kiyohitonara.biwa.shared")
             linkerOpts("-lsqlite3")
         }
     }
@@ -31,7 +33,9 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.koin.core)
+            implementation(libs.koin.core.viewmodel)
             implementation(libs.sqldelight.coroutines)
+            implementation(libs.androidx.lifecycle.viewmodel)
         }
         androidMain.dependencies {
             implementation(libs.sqldelight.android.driver)

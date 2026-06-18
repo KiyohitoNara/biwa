@@ -1,9 +1,9 @@
 import SwiftUI
-import ComposeApp
+import Shared
 
 @MainActor
 private final class SettingsViewModelBridge: ObservableObject {
-    private let vm: ComposeApp.SettingsViewModel
+    private let vm: Shared.SettingsViewModel
     @Published private(set) var uiState: SettingsUiState
     private var streamTask: Task<Void, Never>?
 
@@ -20,7 +20,7 @@ private final class SettingsViewModelBridge: ObservableObject {
 
     deinit { streamTask?.cancel() }
 
-    func setTheme(_ theme: SharedAppTheme) { vm.setTheme(theme: theme) }
+    func setTheme(_ theme: AppTheme) { vm.setTheme(theme: theme) }
 }
 
 struct SettingsView: View {
@@ -36,7 +36,7 @@ struct SettingsView: View {
                     get: { bridge.uiState.theme },
                     set: { bridge.setTheme($0) }
                 )) {
-                    ForEach(SharedAppTheme.allCases, id: \.self) { theme in
+                    ForEach(AppTheme.allCases, id: \.self) { theme in
                         Text(themeLabel(theme)).tag(theme)
                     }
                 }
@@ -58,7 +58,7 @@ struct SettingsView: View {
         }
     }
 
-    private func themeLabel(_ theme: SharedAppTheme) -> String {
+    private func themeLabel(_ theme: AppTheme) -> String {
         switch theme {
         case .system: return "System default"
         case .light: return "Light"

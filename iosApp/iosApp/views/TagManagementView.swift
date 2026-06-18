@@ -1,12 +1,12 @@
 import SwiftUI
-import ComposeApp
+import Shared
 
-extension SharedTag: @retroactive Identifiable {}
+extension MediaTag: @retroactive Identifiable {}
 
 @MainActor
 private final class TagManagementViewModelBridge: ObservableObject {
-    private let vm: ComposeApp.TagManagementViewModel
-    @Published private(set) var tags: [SharedTag] = []
+    private let vm: Shared.TagManagementViewModel
+    @Published private(set) var tags: [MediaTag] = []
     @Published var errorMessage: String?
     private var stateTask: Task<Void, Never>?
     private var errorTask: Task<Void, Never>?
@@ -45,8 +45,8 @@ struct TagManagementView: View {
 
     @StateObject private var bridge = TagManagementViewModelBridge()
     @State private var showCreateDialog = false
-    @State private var renameTarget: SharedTag? = nil
-    @State private var deleteTarget: SharedTag? = nil
+    @State private var renameTarget: MediaTag? = nil
+    @State private var deleteTarget: MediaTag? = nil
 
     var body: some View {
         Group {

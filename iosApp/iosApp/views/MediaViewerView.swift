@@ -1,14 +1,14 @@
 import SwiftUI
 import AVKit
 import ImageIO
-import ComposeApp
+import Shared
 
-extension SharedMediaItem: @retroactive Identifiable {}
+extension MediaItem: @retroactive Identifiable {}
 
 @MainActor
 private final class MediaViewerViewModelBridge: ObservableObject {
     let vm: MediaViewerViewModel
-    @Published private(set) var items: [SharedMediaItem] = []
+    @Published private(set) var items: [MediaItem] = []
     @Published private(set) var currentIndex: Int = 0
     @Published private(set) var isToolbarVisible: Bool = true
     @Published var errorMessage: String?
@@ -60,7 +60,7 @@ struct MediaViewerView: View {
     let onBack: () -> Void
 
     @StateObject private var bridge: MediaViewerViewModelBridge
-    @State private var tagSheetItem: SharedMediaItem?
+    @State private var tagSheetItem: MediaItem?
     @State private var rotationDegrees: Int = 0
 
     init(mediaId: String, onBack: @escaping () -> Void) {
@@ -101,7 +101,7 @@ struct MediaViewerView: View {
         }
     }
 
-    private var currentItem: SharedMediaItem? {
+    private var currentItem: MediaItem? {
         guard bridge.currentIndex < bridge.items.count else { return nil }
         return bridge.items[bridge.currentIndex]
     }
@@ -143,7 +143,7 @@ private struct MediaPager: View {
 }
 
 private struct MediaPageView: View {
-    let item: SharedMediaItem
+    let item: MediaItem
     let isActive: Bool
     let rotationDegrees: Int
     @ObservedObject var bridge: MediaViewerViewModelBridge
@@ -159,7 +159,7 @@ private struct MediaPageView: View {
 }
 
 private struct PhotoPage: View {
-    let item: SharedMediaItem
+    let item: MediaItem
     let rotationDegrees: Int
 
     @State private var scale: CGFloat = 1.0
@@ -285,7 +285,7 @@ private struct PhotoPage: View {
 }
 
 private struct VideoPlayerPage: View {
-    let item: SharedMediaItem
+    let item: MediaItem
     let isActive: Bool
     @ObservedObject var bridge: MediaViewerViewModelBridge
 
@@ -535,8 +535,8 @@ private struct ViewerTopBar: View {
 @MainActor
 private final class TagAssignmentBridge: ObservableObject {
     private let vm: TagManagementViewModel
-    @Published private(set) var allTags: [SharedTag] = []
-    @Published private(set) var mediaTags: [SharedTag] = []
+    @Published private(set) var allTags: [MediaTag] = []
+    @Published private(set) var mediaTags: [MediaTag] = []
     private var stateTask: Task<Void, Never>?
 
     init(mediaId: String) {

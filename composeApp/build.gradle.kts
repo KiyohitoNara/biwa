@@ -6,7 +6,6 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.ktlint)
-    alias(libs.plugins.skie)
 }
 
 kotlin {
@@ -17,14 +16,6 @@ kotlin {
     }
 
     jvm()
-
-    listOf(iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
-        iosTarget.binaries.framework {
-            baseName = "ComposeApp"
-            isStatic = true
-            linkerOpts("-lsqlite3")
-        }
-    }
 
     sourceSets {
         androidMain.dependencies {
