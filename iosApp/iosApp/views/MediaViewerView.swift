@@ -82,7 +82,7 @@ struct MediaViewerView: View {
                     title: currentTitle,
                     onBack: onBack,
                     onRotate: { rotationDegrees = (rotationDegrees + 90) % 360 },
-                    rotateEnabled: currentItem?.mediaType == .photo,
+                    rotateEnabled: currentItem != nil,
                     onEditTags: {
                         if let item = currentItem {
                             tagSheetItem = item
@@ -151,7 +151,7 @@ private struct MediaPageView: View {
     var body: some View {
         switch item.mediaType {
         case .video:
-            VideoPlayerPage(item: item, isActive: isActive, bridge: bridge)
+            VideoPlayerPage(item: item, isActive: isActive, rotationDegrees: rotationDegrees, bridge: bridge)
         default:
             PhotoPage(item: item, rotationDegrees: rotationDegrees)
         }
@@ -287,6 +287,7 @@ private struct PhotoPage: View {
 private struct VideoPlayerPage: View {
     let item: MediaItem
     let isActive: Bool
+    let rotationDegrees: Int
     @ObservedObject var bridge: MediaViewerViewModelBridge
 
     @State private var scale: CGFloat = 1.0
@@ -319,6 +320,7 @@ private struct VideoPlayerPage: View {
         )
         .scaleEffect(scale)
         .offset(offset)
+        .rotationEffect(.degrees(Double(rotationDegrees)))
         .ignoresSafeArea()
         .gesture(
             MagnificationGesture()
