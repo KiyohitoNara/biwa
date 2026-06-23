@@ -3,6 +3,7 @@ package io.github.kiyohitonara.biwa.data.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.db.SqlDriver
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.data.local.BiwaDatabase
 import io.github.kiyohitonara.biwa.data.local.Media_metadata
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
@@ -17,7 +18,9 @@ import kotlinx.coroutines.withContext
 /** SQLDelight-backed implementation of [MediaRepository]. */
 class MediaRepositoryImpl(
     driver: SqlDriver,
+    logger: Logger,
 ) : MediaRepository {
+    private val log = logger.withTag("MediaRepository")
     private val queries = BiwaDatabase(driver).mediaMetadataQueries
 
     override fun getAllMedia(): Flow<List<MediaItem>> =
@@ -34,6 +37,7 @@ class MediaRepositoryImpl(
 
     override suspend fun addMedia(item: MediaItem) =
         withContext(Dispatchers.IO) {
+            log.d { "insert id=${item.id} type=${item.mediaType} name=${item.displayName}" }
             queries.insert(
                 id = item.id,
                 file_path = item.filePath,
@@ -52,6 +56,7 @@ class MediaRepositoryImpl(
 
     override suspend fun deleteMedia(id: String) =
         withContext(Dispatchers.IO) {
+            log.d { "deleteById id=$id" }
             queries.deleteById(id)
         }
 
@@ -59,6 +64,7 @@ class MediaRepositoryImpl(
         id: String,
         timestamp: Long,
     ) = withContext(Dispatchers.IO) {
+        log.v { "updateLastViewedAt id=$id timestamp=$timestamp" }
         queries.updateLastViewedAt(last_viewed_at = timestamp, id = id)
     }
 
@@ -66,6 +72,7 @@ class MediaRepositoryImpl(
         id: String,
         path: String,
     ) = withContext(Dispatchers.IO) {
+        log.d { "updateThumbnailPath id=$id path=$path" }
         queries.updateThumbnailPath(thumbnail_path = path, id = id)
     }
 
@@ -73,6 +80,7 @@ class MediaRepositoryImpl(
         id: String,
         sortOrder: Long,
     ) = withContext(Dispatchers.IO) {
+        log.v { "updateSortOrder id=$id sortOrder=$sortOrder" }
         queries.updateSortOrder(sort_order = sortOrder, id = id)
     }
 

@@ -1,6 +1,8 @@
 package io.github.kiyohitonara.biwa.data.repository
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.loggerConfigInit
 import io.github.kiyohitonara.biwa.data.local.BiwaDatabase
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
@@ -21,7 +23,7 @@ class MediaRepositoryImplTest {
     fun setup() {
         driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         BiwaDatabase.Schema.create(driver)
-        repository = MediaRepositoryImpl(driver)
+        repository = MediaRepositoryImpl(driver, Logger(loggerConfigInit()))
     }
 
     @AfterTest

@@ -39,7 +39,7 @@ import org.koin.dsl.module
 /** Koin module for platform-agnostic bindings shared across all targets. */
 val sharedModule =
     module {
-        single<MediaRepository> { MediaRepositoryImpl(get()) }
+        single<MediaRepository> { MediaRepositoryImpl(get(), get()) }
         single<PlaybackStateRepository> { PlaybackStateRepositoryImpl(get()) }
         single<TagRepository> { TagRepositoryImpl(get()) }
         single<UserPreferencesRepository> { UserPreferencesRepositoryImpl(get()) }
