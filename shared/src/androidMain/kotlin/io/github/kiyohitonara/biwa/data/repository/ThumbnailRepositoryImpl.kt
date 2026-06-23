@@ -3,6 +3,7 @@ package io.github.kiyohitonara.biwa.data.repository
 import android.content.Context
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.domain.repository.ThumbnailRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -12,7 +13,10 @@ import java.io.FileOutputStream
 /** Android implementation that extracts frames via [MediaMetadataRetriever]. */
 class ThumbnailRepositoryImpl(
     private val context: Context,
+    logger: Logger,
 ) : ThumbnailRepository {
+    private val log = logger.withTag("ThumbnailRepository")
+
     override suspend fun generateVideoThumbnail(videoPath: String): String? =
         withContext(Dispatchers.IO) {
             try {
@@ -31,8 +35,10 @@ class ThumbnailRepositoryImpl(
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
                 }
                 bitmap.recycle()
+                log.d { "Generated thumbnail for videoPath=$videoPath at ${file.absolutePath}" }
                 file.absolutePath
             } catch (e: Exception) {
+                log.w(e) { "Failed to generate thumbnail for videoPath=$videoPath" }
                 null
             }
         }

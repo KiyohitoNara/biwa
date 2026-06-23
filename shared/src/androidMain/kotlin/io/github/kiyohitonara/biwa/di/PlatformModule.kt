@@ -20,6 +20,6 @@ val platformModule =
         single<SqlDriver> { get<DatabaseDriverFactory>().createDriver() }
         single<FileStorage> { FileManager(androidContext()) }
         single<MediaMetadataExtractor> { MediaMetadataExtractorImpl(androidContext(), get()) }
-        single<ThumbnailRepository> { ThumbnailRepositoryImpl(androidContext()) }
+        single<ThumbnailRepository> { ThumbnailRepositoryImpl(androidContext(), get()) }
         single<PreferencesStorage> { SharedPreferencesStorage(androidContext()) }
     }

@@ -1,5 +1,6 @@
 package io.github.kiyohitonara.biwa.data.repository
 
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.domain.repository.ThumbnailRepository
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +19,11 @@ import platform.UIKit.UIImageJPEGRepresentation
 
 /** iOS implementation that extracts video thumbnails via AVFoundation. */
 @OptIn(ExperimentalForeignApi::class)
-class ThumbnailRepositoryImpl : ThumbnailRepository {
+class ThumbnailRepositoryImpl(
+    logger: Logger,
+) : ThumbnailRepository {
+    private val log = logger.withTag("ThumbnailRepository")
+
     override suspend fun generateVideoThumbnail(videoPath: String): String? =
         withContext(Dispatchers.IO) {
             try {
@@ -60,8 +65,10 @@ class ThumbnailRepositoryImpl : ThumbnailRepository {
                     contents = jpegData,
                     attributes = null,
                 )
+                log.d { "Generated thumbnail for videoPath=$videoPath at $filePath" }
                 filePath
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                log.w(e) { "Failed to generate thumbnail for videoPath=$videoPath" }
                 null
             }
         }

@@ -19,6 +19,6 @@ val platformModule =
         single<SqlDriver> { get<DatabaseDriverFactory>().createDriver() }
         single<FileStorage> { FileManager() }
         single<MediaMetadataExtractor> { MediaMetadataExtractorImpl(get()) }
-        single<ThumbnailRepository> { ThumbnailRepositoryImpl() }
+        single<ThumbnailRepository> { ThumbnailRepositoryImpl(get()) }
         single<PreferencesStorage> { NSUserDefaultsStorage() }
     }
