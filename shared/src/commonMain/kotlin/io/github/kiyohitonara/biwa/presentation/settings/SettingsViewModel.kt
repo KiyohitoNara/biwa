@@ -2,6 +2,7 @@ package io.github.kiyohitonara.biwa.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.domain.model.AppTheme
 import io.github.kiyohitonara.biwa.domain.usecase.GetUserPreferencesUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.SetThemeUseCase
@@ -15,7 +16,10 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val getUserPreferencesUseCase: GetUserPreferencesUseCase,
     private val setThemeUseCase: SetThemeUseCase,
+    logger: Logger,
 ) : ViewModel() {
+    private val log = logger.withTag("SettingsViewModel")
+
     /**
      * Current settings state derived from persisted user preferences.
      *
@@ -34,6 +38,7 @@ class SettingsViewModel(
 
     /** Persists [theme] as the app-wide color scheme. */
     fun setTheme(theme: AppTheme) {
+        log.i { "User selected theme=$theme" }
         viewModelScope.launch { setThemeUseCase.execute(theme) }
     }
 }

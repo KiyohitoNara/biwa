@@ -1,5 +1,7 @@
 package io.github.kiyohitonara.biwa.presentation.settings
 
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.loggerConfigInit
 import io.github.kiyohitonara.biwa.domain.model.AppTheme
 import io.github.kiyohitonara.biwa.domain.model.UserPreferences
 import io.github.kiyohitonara.biwa.domain.repository.UserPreferencesRepository
@@ -47,6 +49,7 @@ class SettingsViewModelTest {
         SettingsViewModel(
             getUserPreferencesUseCase = GetUserPreferencesUseCase(fakeRepository),
             setThemeUseCase = SetThemeUseCase(fakeRepository),
+            logger = Logger(loggerConfigInit()),
         )
 
     @Test
