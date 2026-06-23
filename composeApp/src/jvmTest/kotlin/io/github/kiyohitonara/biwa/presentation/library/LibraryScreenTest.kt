@@ -7,6 +7,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.loggerConfigInit
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
@@ -16,7 +18,6 @@ import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForTagUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetUserPreferencesUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderTagMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
@@ -82,7 +83,6 @@ class LibraryScreenTest {
         val fakeMediaRepository = FakeMediaRepository(fakeItems)
         val fakeThumbnailRepository = FakeThumbnailRepository()
         val fakeTagRepository = FakeTagRepository()
-        val fakePreferencesRepository = FakeUserPreferencesRepository()
         val fakeFileStorage = FakeFileStorage()
         val fakeMetadataExtractor = FakeMediaMetadataExtractor()
         return LibraryViewModel(
@@ -94,11 +94,12 @@ class LibraryScreenTest {
             reorderMediaUseCase = ReorderMediaUseCase(fakeMediaRepository),
             getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
             getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
-            getUserPreferencesUseCase = GetUserPreferencesUseCase(fakePreferencesRepository),
             getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
             reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
             addMediaUseCase = AddMediaUseCase(fakeMediaRepository, fakeFileStorage, clock = { 0L }),
             metadataExtractor = fakeMetadataExtractor,
+            libraryDisplayState = LibraryDisplayState(),
+            logger = Logger(loggerConfigInit()),
         )
     }
 }
