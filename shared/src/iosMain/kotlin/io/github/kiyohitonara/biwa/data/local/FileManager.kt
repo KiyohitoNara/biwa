@@ -1,5 +1,6 @@
 package io.github.kiyohitonara.biwa.data.local
 
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.Dispatchers
@@ -12,7 +13,11 @@ import platform.Foundation.NSUserDomainMask
 
 /** iOS implementation that copies files into the app sandbox's Application Support directory. */
 @OptIn(ExperimentalForeignApi::class)
-actual class FileManager : FileStorage {
+actual class FileManager(
+    logger: Logger,
+) : FileStorage {
+    private val log = logger.withTag("FileManager")
+
     actual override suspend fun copyToInternalStorage(
         sourceUri: String,
         fileName: String,
@@ -35,14 +40,17 @@ actual class FileManager : FileStorage {
                 )
             check(success) { "Failed to copy file from $sourceUri to $destPath" }
 
+            log.d { "Copied $sourceUri to $destPath" }
             destPath
         }
 
     actual override suspend fun deleteFromInternalStorage(filePath: String) =
         withContext(Dispatchers.IO) {
-            if (NSFileManager.defaultManager.fileExistsAtPath(filePath)) {
+            val existed = NSFileManager.defaultManager.fileExistsAtPath(filePath)
+            if (existed) {
                 NSFileManager.defaultManager.removeItemAtPath(filePath, error = null)
             }
+            log.d { "Delete filePath=$filePath existed=$existed" }
             Unit
         }
 
