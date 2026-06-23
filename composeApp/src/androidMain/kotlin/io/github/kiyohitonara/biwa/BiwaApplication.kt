@@ -2,6 +2,7 @@ package io.github.kiyohitonara.biwa
 
 import android.app.Application
 import android.content.pm.ApplicationInfo
+import co.touchlab.kermit.platformLogWriter
 import io.github.kiyohitonara.biwa.di.loggingModule
 import io.github.kiyohitonara.biwa.di.platformModule
 import io.github.kiyohitonara.biwa.di.sharedModule
@@ -16,7 +17,7 @@ class BiwaApplication : Application() {
         val isDebug = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         startKoin {
             androidContext(this@BiwaApplication)
-            modules(loggingModule(isDebug), platformModule, sharedModule, viewModelModule)
+            modules(loggingModule(isDebug, platformLogWriter()), platformModule, sharedModule, viewModelModule)
         }
     }
 }

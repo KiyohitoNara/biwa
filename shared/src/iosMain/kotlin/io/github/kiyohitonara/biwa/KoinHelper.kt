@@ -1,5 +1,6 @@
 package io.github.kiyohitonara.biwa
 
+import co.touchlab.kermit.OSLogWriter
 import io.github.kiyohitonara.biwa.di.loggingModule
 import io.github.kiyohitonara.biwa.di.platformModule
 import io.github.kiyohitonara.biwa.di.sharedModule
@@ -12,8 +13,9 @@ import kotlin.native.Platform
 object KoinHelper {
     @OptIn(ExperimentalNativeApi::class)
     fun start() {
+        val logWriter = OSLogWriter(subsystem = "io.github.kiyohitonara.biwa", category = "Biwa")
         startKoin {
-            modules(loggingModule(Platform.isDebugBinary), platformModule, sharedModule, viewModelModule)
+            modules(loggingModule(Platform.isDebugBinary, logWriter), platformModule, sharedModule, viewModelModule)
         }
     }
 }

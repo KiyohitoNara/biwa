@@ -36,7 +36,7 @@ kotlin {
             implementation(libs.koin.core.viewmodel)
             implementation(libs.sqldelight.coroutines)
             implementation(libs.androidx.lifecycle.viewmodel)
-            implementation(libs.kermit)
+            api(libs.kermit)
         }
         androidMain.dependencies {
             implementation(libs.sqldelight.android.driver)
