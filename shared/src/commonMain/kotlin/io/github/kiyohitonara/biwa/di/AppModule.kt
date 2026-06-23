@@ -42,7 +42,7 @@ val sharedModule =
         single<MediaRepository> { MediaRepositoryImpl(get(), get()) }
         single<PlaybackStateRepository> { PlaybackStateRepositoryImpl(get(), get()) }
         single<TagRepository> { TagRepositoryImpl(get(), get()) }
-        single<UserPreferencesRepository> { UserPreferencesRepositoryImpl(get()) }
+        single<UserPreferencesRepository> { UserPreferencesRepositoryImpl(get(), get()) }
         factory { AddMediaUseCase(get(), get(), clock = { currentEpochSeconds() }) }
         factory { GetAllMediaUseCase(get()) }
         factory { DeleteMediaUseCase(get(), get()) }

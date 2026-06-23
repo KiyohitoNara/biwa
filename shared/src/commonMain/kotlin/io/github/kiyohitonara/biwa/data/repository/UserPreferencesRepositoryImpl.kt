@@ -1,5 +1,6 @@
 package io.github.kiyohitonara.biwa.data.repository
 
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.domain.model.AppTheme
 import io.github.kiyohitonara.biwa.domain.model.UserPreferences
 import io.github.kiyohitonara.biwa.domain.repository.UserPreferencesRepository
@@ -11,12 +12,15 @@ import kotlinx.coroutines.flow.asStateFlow
 /** [UserPreferencesRepository] backed by [PreferencesStorage]. */
 class UserPreferencesRepositoryImpl(
     private val storage: PreferencesStorage,
+    logger: Logger,
 ) : UserPreferencesRepository {
+    private val log = logger.withTag("UserPreferencesRepository")
     private val _preferences = MutableStateFlow(load())
 
     override fun getPreferences(): Flow<UserPreferences> = _preferences.asStateFlow()
 
     override suspend fun setTheme(theme: AppTheme) {
+        log.d { "setTheme theme=$theme" }
         storage.setString(KEY_THEME, theme.name)
         _preferences.value = load()
     }
