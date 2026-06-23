@@ -2,6 +2,7 @@ package io.github.kiyohitonara.biwa.presentation.mediaviewer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.domain.model.AbPoint
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
@@ -44,7 +45,10 @@ class MediaViewerViewModel(
     private val setAbPointUseCase: SetAbPointUseCase,
     private val resetAbRepeatUseCase: ResetAbRepeatUseCase,
     private val libraryDisplayState: LibraryDisplayState,
+    logger: Logger,
 ) : ViewModel() {
+    private val log = logger.withTag("MediaViewerViewModel")
+
     private val _uiState = MutableStateFlow<MediaViewerUiState>(MediaViewerUiState.Loading)
 
     /** Current state of the media viewer screen. */
@@ -73,6 +77,7 @@ class MediaViewerViewModel(
             ?.associate { (index, id) -> id to index }
 
     init {
+        log.d { "Opening viewer for mediaId=$mediaId" }
         viewModelScope.launch { collectMedia() }
     }
 
@@ -89,8 +94,10 @@ class MediaViewerViewModel(
             if (currentState is MediaViewerUiState.Loading) {
                 val index = items.indexOfFirst { it.id == mediaId }
                 if (index == -1) {
+                    log.w { "Media not found for mediaId=$mediaId among ${items.size} items" }
                     _uiState.value = MediaViewerUiState.Error("Media not found")
                 } else {
+                    log.i { "Ready at index=$index of ${items.size} items" }
                     _uiState.value = readyStateFor(items, index)
                 }
             } else if (currentState is MediaViewerUiState.Ready) {
@@ -141,6 +148,7 @@ class MediaViewerViewModel(
         val state = _uiState.value as? MediaViewerUiState.Ready ?: return
         if (index == state.currentIndex) return
         val newItem = state.items.getOrNull(index) ?: return
+        log.d { "Media changed to index=$index id=${newItem.id} type=${newItem.mediaType}" }
         viewModelScope.launch {
             saveCurrentVideoState(state)
             val saved = if (newItem.isPlayable) getPlaybackStateUseCase.execute(newItem.id) else null
@@ -212,11 +220,15 @@ class MediaViewerViewModel(
         viewModelScope.launch {
             when (setAbPointUseCase.execute(current.id, point, positionMs)) {
                 is SetAbPointResult.Success -> {
+                    log.i { "AB point $point set at ${positionMs}ms for id=${current.id}" }
                     val newAbStart = if (point == AbPoint.A) positionMs else state.abStartMs
                     val newAbEnd = if (point == AbPoint.B) positionMs else state.abEndMs
                     _uiState.value = state.copy(abStartMs = newAbStart, abEndMs = newAbEnd)
                 }
-                is SetAbPointResult.InvalidRange -> _abRepeatError.emit(Unit)
+                is SetAbPointResult.InvalidRange -> {
+                    log.w { "AB point $point rejected at ${positionMs}ms (invalid range) for id=${current.id}" }
+                    _abRepeatError.emit(Unit)
+                }
             }
         }
     }
@@ -226,6 +238,7 @@ class MediaViewerViewModel(
         val state = _uiState.value as? MediaViewerUiState.Ready ?: return
         val current = state.items.getOrNull(state.currentIndex) ?: return
         if (!current.isPlayable) return
+        log.i { "AB repeat reset for id=${current.id}" }
         viewModelScope.launch {
             resetAbRepeatUseCase.execute(current.id)
             _uiState.value = state.copy(abStartMs = null, abEndMs = null)
@@ -241,6 +254,7 @@ class MediaViewerViewModel(
     fun deleteCurrentMedia() {
         val state = _uiState.value as? MediaViewerUiState.Ready ?: return
         val item = state.items.getOrNull(state.currentIndex) ?: return
+        log.i { "Deleting media id=${item.id}" }
         viewModelScope.launch {
             deletedIds.add(item.id)
             deleteMediaUseCase.execute(item.id)
@@ -261,6 +275,7 @@ class MediaViewerViewModel(
         val current = state.items.getOrNull(state.currentIndex) ?: return
         if (!current.isPlayable) return
         if (current.id in deletedIds) return
+        log.d { "Saving playback state id=${current.id} position=${state.positionMs}ms speed=${state.playbackSpeed}" }
         savePlaybackStateUseCase.execute(
             videoId = current.id,
             positionMs = state.positionMs,

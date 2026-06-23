@@ -1,5 +1,7 @@
 package io.github.kiyohitonara.biwa.presentation.mediaviewer
 
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.loggerConfigInit
 import io.github.kiyohitonara.biwa.domain.model.AbPoint
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
@@ -50,6 +52,7 @@ class MediaViewerViewModelTest {
         setAbPointUseCase = SetAbPointUseCase(fakePlaybackRepository, clock = { 0L }),
         resetAbRepeatUseCase = ResetAbRepeatUseCase(fakePlaybackRepository, clock = { 0L }),
         libraryDisplayState = displayState,
+        logger = Logger(loggerConfigInit()),
     )
 
     @BeforeTest
