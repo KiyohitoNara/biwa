@@ -3,6 +3,7 @@ package io.github.kiyohitonara.biwa.data.repository
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.db.SqlDriver
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.data.local.BiwaDatabase
 import io.github.kiyohitonara.biwa.data.local.Tag
 import io.github.kiyohitonara.biwa.domain.repository.TagRepository
@@ -16,7 +17,9 @@ import io.github.kiyohitonara.biwa.domain.model.Tag as DomainTag
 /** SQLDelight-backed implementation of [TagRepository]. */
 class TagRepositoryImpl(
     driver: SqlDriver,
+    logger: Logger,
 ) : TagRepository {
+    private val log = logger.withTag("TagRepository")
     private val db = BiwaDatabase(driver)
     private val tagQueries = db.tagQueries
     private val mediaTagQueries = db.mediaTagQueries
@@ -35,6 +38,7 @@ class TagRepositoryImpl(
 
     override suspend fun createTag(tag: DomainTag) =
         withContext(Dispatchers.IO) {
+            log.d { "insert tag id=${tag.id} name=${tag.name}" }
             tagQueries.insert(id = tag.id, name = tag.name, created_at = tag.createdAt)
         }
 
@@ -42,11 +46,13 @@ class TagRepositoryImpl(
         id: String,
         name: String,
     ) = withContext(Dispatchers.IO) {
+        log.d { "updateName tag id=$id name=$name" }
         tagQueries.updateName(name = name, id = id)
     }
 
     override suspend fun deleteTag(id: String) =
         withContext(Dispatchers.IO) {
+            log.d { "deleteById tag id=$id" }
             tagQueries.deleteById(id)
         }
 
@@ -61,6 +67,7 @@ class TagRepositoryImpl(
         mediaId: String,
         tagId: String,
     ) = withContext(Dispatchers.IO) {
+        log.d { "addTagToMedia mediaId=$mediaId tagId=$tagId" }
         mediaTagQueries.insert(mediaId = mediaId, tagId = tagId)
     }
 
@@ -68,6 +75,7 @@ class TagRepositoryImpl(
         mediaId: String,
         tagId: String,
     ) = withContext(Dispatchers.IO) {
+        log.d { "removeTagFromMedia mediaId=$mediaId tagId=$tagId" }
         mediaTagQueries.deleteByMediaIdAndTagId(mediaId, tagId)
     }
 
@@ -96,6 +104,7 @@ class TagRepositoryImpl(
         tagId: String,
         orderedIds: List<String>,
     ) = withContext(Dispatchers.IO) {
+        log.d { "reorderTagMedia tagId=$tagId count=${orderedIds.size}" }
         db.transaction {
             orderedIds.forEachIndexed { index, mediaId ->
                 mediaTagQueries.updateSortOrder(
