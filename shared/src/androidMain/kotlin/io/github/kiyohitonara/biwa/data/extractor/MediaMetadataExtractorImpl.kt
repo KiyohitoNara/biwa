@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
 import io.github.kiyohitonara.biwa.domain.model.MediaFileMetadata
 import io.github.kiyohitonara.biwa.domain.model.MediaType
@@ -14,7 +15,10 @@ import kotlinx.coroutines.withContext
 /** Android implementation that reads metadata via [ContentResolver] and [MediaMetadataRetriever]. */
 class MediaMetadataExtractorImpl(
     private val context: Context,
+    logger: Logger,
 ) : MediaMetadataExtractor {
+    private val log = logger.withTag("MediaMetadataExtractor")
+
     override suspend fun extract(sourceUri: String): MediaFileMetadata =
         withContext(Dispatchers.IO) {
             val uri = Uri.parse(sourceUri)
@@ -55,6 +59,10 @@ class MediaMetadataExtractorImpl(
                 }
             }
 
+            log.d {
+                "extract uri=$sourceUri name=$fileName type=$mediaType " +
+                    "size=${fileSizeBytes}B ${widthPx}x$heightPx duration=${durationMs}ms"
+            }
             MediaFileMetadata(
                 fileName = fileName,
                 mediaType = mediaType,
