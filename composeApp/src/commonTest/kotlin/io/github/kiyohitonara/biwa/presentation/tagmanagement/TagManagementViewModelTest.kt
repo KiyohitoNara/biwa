@@ -1,5 +1,7 @@
 package io.github.kiyohitonara.biwa.presentation.tagmanagement
 
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.loggerConfigInit
 import io.github.kiyohitonara.biwa.domain.model.Tag
 import io.github.kiyohitonara.biwa.domain.repository.TagRepository
 import io.github.kiyohitonara.biwa.domain.usecase.AddTagToMediaUseCase
@@ -50,6 +52,7 @@ class TagManagementViewModelTest {
             getTagsForMediaUseCase = GetTagsForMediaUseCase(fakeRepository),
             addTagToMediaUseCase = AddTagToMediaUseCase(fakeRepository),
             removeTagFromMediaUseCase = RemoveTagFromMediaUseCase(fakeRepository),
+            logger = Logger(loggerConfigInit()),
         )
 
     @BeforeTest

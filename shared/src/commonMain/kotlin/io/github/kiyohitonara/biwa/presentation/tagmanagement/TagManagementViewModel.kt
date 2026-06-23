@@ -2,6 +2,7 @@ package io.github.kiyohitonara.biwa.presentation.tagmanagement
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.domain.usecase.AddTagToMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.CreateTagUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteTagUseCase
@@ -35,7 +36,10 @@ class TagManagementViewModel(
     private val getTagsForMediaUseCase: GetTagsForMediaUseCase,
     private val addTagToMediaUseCase: AddTagToMediaUseCase,
     private val removeTagFromMediaUseCase: RemoveTagFromMediaUseCase,
+    logger: Logger,
 ) : ViewModel() {
+    private val log = logger.withTag("TagManagementViewModel")
+
     /**
      * Current state combining all tags with the media-specific tag list.
      *
@@ -64,10 +68,12 @@ class TagManagementViewModel(
      * Emits on [error] if the name is blank or already taken.
      */
     fun createTag(name: String) {
+        log.i { "Create tag name=$name" }
         viewModelScope.launch {
             try {
                 createTagUseCase.execute(name)
             } catch (e: Exception) {
+                log.w(e) { "Failed to create tag name=$name" }
                 _error.emit(e.message ?: "Failed to create tag")
             }
         }
@@ -82,10 +88,12 @@ class TagManagementViewModel(
         id: String,
         name: String,
     ) {
+        log.i { "Rename tag id=$id name=$name" }
         viewModelScope.launch {
             try {
                 renameTagUseCase.execute(id, name)
             } catch (e: Exception) {
+                log.w(e) { "Failed to rename tag id=$id name=$name" }
                 _error.emit(e.message ?: "Failed to rename tag")
             }
         }
@@ -95,6 +103,7 @@ class TagManagementViewModel(
      * Deletes the tag identified by [id] along with all its media associations.
      */
     fun deleteTag(id: String) {
+        log.i { "Delete tag id=$id" }
         viewModelScope.launch { deleteTagUseCase.execute(id) }
     }
 
@@ -109,8 +118,10 @@ class TagManagementViewModel(
         val state = uiState.value as? TagManagementUiState.Ready ?: return
         viewModelScope.launch {
             if (state.mediaTags.any { it.id == tagId }) {
+                log.d { "Detach tag tagId=$tagId from mediaId=$mid" }
                 removeTagFromMediaUseCase.execute(mid, tagId)
             } else {
+                log.d { "Attach tag tagId=$tagId to mediaId=$mid" }
                 addTagToMediaUseCase.execute(mid, tagId)
             }
         }
