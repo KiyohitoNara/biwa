@@ -40,7 +40,7 @@ import org.koin.dsl.module
 val sharedModule =
     module {
         single<MediaRepository> { MediaRepositoryImpl(get(), get()) }
-        single<PlaybackStateRepository> { PlaybackStateRepositoryImpl(get()) }
+        single<PlaybackStateRepository> { PlaybackStateRepositoryImpl(get(), get()) }
         single<TagRepository> { TagRepositoryImpl(get()) }
         single<UserPreferencesRepository> { UserPreferencesRepositoryImpl(get()) }
         factory { AddMediaUseCase(get(), get(), clock = { currentEpochSeconds() }) }

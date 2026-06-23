@@ -1,6 +1,7 @@
 package io.github.kiyohitonara.biwa.data.repository
 
 import app.cash.sqldelight.db.SqlDriver
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.data.local.BiwaDatabase
 import io.github.kiyohitonara.biwa.data.local.Playback_state
 import io.github.kiyohitonara.biwa.domain.model.PlaybackState
@@ -12,7 +13,9 @@ import kotlinx.coroutines.withContext
 /** SQLDelight-backed implementation of [PlaybackStateRepository]. */
 class PlaybackStateRepositoryImpl(
     driver: SqlDriver,
+    logger: Logger,
 ) : PlaybackStateRepository {
+    private val log = logger.withTag("PlaybackStateRepository")
     private val queries = BiwaDatabase(driver).playbackStateQueries
 
     override suspend fun getPlaybackState(videoId: String): PlaybackState? =
@@ -22,6 +25,10 @@ class PlaybackStateRepositoryImpl(
 
     override suspend fun savePlaybackState(state: PlaybackState) =
         withContext(Dispatchers.IO) {
+            log.d {
+                "upsert videoId=${state.videoId} position=${state.positionMs}ms " +
+                    "ab=[${state.abStartMs},${state.abEndMs}] speed=${state.playbackSpeed}"
+            }
             queries.upsert(
                 video_id = state.videoId,
                 position_ms = state.positionMs,
