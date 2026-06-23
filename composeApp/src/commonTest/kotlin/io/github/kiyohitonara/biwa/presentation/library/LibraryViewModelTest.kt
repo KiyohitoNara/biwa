@@ -1,5 +1,7 @@
 package io.github.kiyohitonara.biwa.presentation.library
 
+import co.touchlab.kermit.Logger
+import co.touchlab.kermit.loggerConfigInit
 import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
 import io.github.kiyohitonara.biwa.domain.model.MediaFileMetadata
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
@@ -69,6 +71,7 @@ class LibraryViewModelTest {
         addMediaUseCase = AddMediaUseCase(repository, fakeFileStorage(), clock = { 0L }),
         metadataExtractor = fakeMetadataExtractor(),
         libraryDisplayState = displayState,
+        logger = Logger(loggerConfigInit()),
     )
 
     private fun fakeMetadataExtractor() =
@@ -195,6 +198,7 @@ class LibraryViewModelTest {
                     addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
                     metadataExtractor = fakeMetadataExtractor(),
                     libraryDisplayState = LibraryDisplayState(),
+                    logger = Logger(loggerConfigInit()),
                 )
             fakeItems.value = listOf(videoItem())
 
@@ -690,6 +694,7 @@ class LibraryViewModelTest {
                     addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
                     metadataExtractor = partialExtractor,
                     libraryDisplayState = LibraryDisplayState(),
+                    logger = Logger(loggerConfigInit()),
                 )
             var received: String? = null
             val job = launch { partialViewModel.addMediaError.collect { received = it } }

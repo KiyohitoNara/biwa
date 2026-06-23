@@ -12,7 +12,7 @@ import org.koin.dsl.module
 val viewModelModule =
     module {
         single { LibraryDisplayState() }
-        viewModel { LibraryViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+        viewModel { LibraryViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
         viewModel { params -> MediaViewerViewModel(params.get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
         viewModel { params -> TagManagementViewModel(params.getOrNull<String>(), get(), get(), get(), get(), get(), get(), get(), get()) }
         viewModel { SettingsViewModel(get(), get(), get()) }

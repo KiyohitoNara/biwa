@@ -2,6 +2,7 @@ package io.github.kiyohitonara.biwa.presentation.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
 import io.github.kiyohitonara.biwa.domain.model.AddMediaRequest
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
@@ -54,7 +55,10 @@ class LibraryViewModel(
     private val addMediaUseCase: AddMediaUseCase,
     private val metadataExtractor: MediaMetadataExtractor,
     private val libraryDisplayState: LibraryDisplayState,
+    logger: Logger,
 ) : ViewModel() {
+    private val log = logger.withTag("LibraryViewModel")
+
     // IDs for which thumbnail generation has already been scheduled this session.
     private val generatingIds = mutableSetOf<String>()
 
@@ -160,6 +164,7 @@ class LibraryViewModel(
         if (state.activeTagIds.size > 1) return
         val orderedIds = state.items.applySort(sortOrder).map { it.id }
         val singleTagId = state.activeTagIds.singleOrNull()
+        log.i { "Set sort order=$sortOrder tagId=$singleTagId count=${orderedIds.size}" }
         viewModelScope.launch {
             if (singleTagId != null) {
                 reorderTagMediaUseCase.execute(singleTagId, orderedIds)
@@ -179,6 +184,7 @@ class LibraryViewModel(
         _activeTagIds.update { ids ->
             if (tagId in ids) ids - tagId else ids + tagId
         }
+        log.d { "Toggle tag filter tagId=$tagId active=${_activeTagIds.value}" }
     }
 
     /**
@@ -201,6 +207,7 @@ class LibraryViewModel(
         items.add(toIndex.coerceIn(0, items.size), item)
         val orderedIds = items.map { it.id }
         val singleTagId = state.activeTagIds.singleOrNull()
+        log.d { "Reorder media from=$fromIndex to=$toIndex tagId=$singleTagId" }
         viewModelScope.launch {
             if (singleTagId != null) {
                 reorderTagMediaUseCase.execute(singleTagId, orderedIds)
@@ -217,10 +224,12 @@ class LibraryViewModel(
      * On failure an error message is emitted on [deleteError].
      */
     fun deleteMedia(id: String) {
+        log.i { "Delete media id=$id" }
         viewModelScope.launch {
             try {
                 deleteMediaUseCase.execute(id)
             } catch (e: Exception) {
+                log.w(e) { "Failed to delete media id=$id" }
                 _deleteError.emit(e.message ?: "Failed to delete")
             }
         }
@@ -239,6 +248,7 @@ class LibraryViewModel(
      */
     fun addMedia(uris: List<String>) {
         if (uris.isEmpty()) return
+        log.i { "Add media count=${uris.size}" }
         viewModelScope.launch {
             _isAdding.value = true
             var success = 0
@@ -260,11 +270,13 @@ class LibraryViewModel(
                         ),
                     )
                     success++
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    log.w(e) { "Failed to add media uri=$uri" }
                     failure++
                 }
             }
             _isAdding.value = false
+            log.i { "Add media finished success=$success failure=$failure" }
             if (failure > 0) {
                 _addMediaError.emit("Added $success, failed $failure")
             }
@@ -276,6 +288,7 @@ class LibraryViewModel(
      * positioned at [id]. Does nothing if [id] is not found in the library.
      */
     fun openMedia(id: String) {
+        log.d { "Open media id=$id" }
         viewModelScope.launch {
             updateLastViewedAtUseCase.execute(id)
             getMediaByIdUseCase.execute(id) ?: return@launch
