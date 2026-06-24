@@ -20,5 +20,5 @@ val platformModule =
         single<FileStorage> { FileManager(get()) }
         single<MediaMetadataExtractor> { MediaMetadataExtractorImpl(get()) }
         single<ThumbnailRepository> { ThumbnailRepositoryImpl(get()) }
-        single<PreferencesStorage> { NSUserDefaultsStorage() }
+        single<PreferencesStorage> { NSUserDefaultsStorage(get()) }
     }

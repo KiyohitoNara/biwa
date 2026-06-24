@@ -21,5 +21,5 @@ val platformModule =
         single<FileStorage> { FileManager(androidContext(), get()) }
         single<MediaMetadataExtractor> { MediaMetadataExtractorImpl(androidContext(), get()) }
         single<ThumbnailRepository> { ThumbnailRepositoryImpl(androidContext(), get()) }
-        single<PreferencesStorage> { SharedPreferencesStorage(androidContext()) }
+        single<PreferencesStorage> { SharedPreferencesStorage(androidContext(), get()) }
     }
