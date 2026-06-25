@@ -5,11 +5,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,8 +50,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -69,8 +64,6 @@ import io.github.kiyohitonara.biwa.R
 import io.github.kiyohitonara.biwa.domain.model.AbPoint
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.math.exp
 import androidx.media3.common.MediaItem as Media3MediaItem
 
 private val PLAYBACK_SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
@@ -81,9 +74,6 @@ private val BrandOrange = Color(0xFFF4A44A)
 
 private const val MAX_ZOOM = 8f
 private const val DOUBLE_TAP_ZOOM = 2f
-
-// Pixels of vertical drag that produce an e-fold (~2.72x) change in scale.
-private const val QUICK_ZOOM_SENSITIVITY_PX = 200f
 
 private const val POSITION_POLL_INTERVAL_MS = 100L
 
@@ -99,14 +89,7 @@ private const val SEEK_TAP_RIGHT_FRACTION = 2f / 3f
  */
 @OptIn(ExperimentalMaterial3Api::class)
 // modifier-missing / ModifierMissing: the signature is fixed by the expect/actual declaration.
-// CyclomaticComplexMethod / LoopWithTooManyJumpStatements: the inline gesture state machine is
-// inherently branchy; extracting it would obscure the pointer-event flow.
-@Suppress(
-    "ktlint:compose:modifier-missing-check",
-    "ModifierMissing",
-    "CyclomaticComplexMethod",
-    "LoopWithTooManyJumpStatements",
-)
+@Suppress("ktlint:compose:modifier-missing-check", "ModifierMissing")
 @Composable
 actual fun VideoPage(
     item: MediaItem,
@@ -128,70 +111,16 @@ actual fun VideoPage(
     // The state-derived fields only apply to this video while it is the current item.
     val isCurrent = state.items.getOrNull(state.currentIndex)?.id == item.id
 
-    LaunchedEffect(item.filePath) {
-        player.setMediaItem(Media3MediaItem.fromUri(item.filePath))
-        player.prepare()
-    }
-
-    // Apply saved position / speed once the page becomes the current one.
-    LaunchedEffect(isCurrent) {
-        if (isCurrent) {
-            player.seekTo(state.positionMs)
-            player.playbackParameters = PlaybackParameters(state.playbackSpeed)
-        }
-    }
-
-    // Pause when the page leaves the viewport. Don't auto-play on activation —
-    // the user starts playback via the play button.
-    LaunchedEffect(isActive) {
-        if (!isActive) player.pause()
-    }
-
-    DisposableEffect(player) {
-        val listener =
-            object : Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    if (isCurrent) viewModel.updatePlayingState(isPlaying)
-                }
-
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (isCurrent && playbackState == Player.STATE_READY) {
-                        viewModel.updateDuration(player.duration.coerceAtLeast(0L))
-                    }
-                }
-            }
-        player.addListener(listener)
-        onDispose {
-            player.removeListener(listener)
-            player.release()
-        }
-    }
-
-    // Position polling + AB-repeat enforcement during playback (current page only).
-    LaunchedEffect(state.isPlaying, isCurrent) {
-        if (!isCurrent) return@LaunchedEffect
-        while (state.isPlaying) {
-            val currentPos = player.currentPosition
-            viewModel.updatePosition(currentPos)
-            val abStart = state.abStartMs
-            val abEnd = state.abEndMs
-            if (abStart != null && abEnd != null && currentPos >= abEnd) {
-                player.seekTo(abStart)
-            }
-            delay(POSITION_POLL_INTERVAL_MS)
-        }
-    }
-
-    // Auto-hide controls 5s after they become visible during playback.
-    LaunchedEffect(state.isControlsVisible, isCurrent) {
-        if (!isCurrent) return@LaunchedEffect
-        if (state.isControlsVisible) {
-            delay(CONTROLS_HIDE_DELAY_MS)
-            if (state.isPlaying && state.isControlsVisible) {
-                viewModel.toggleControls()
-            }
-        }
-    }
+    PlayerStateEffects(
+        player = player,
+        item = item,
+        isActive = isActive,
+        isCurrent = isCurrent,
+        state = state,
+        viewModel = viewModel,
+    )
+    PlaybackPollingEffect(player = player, state = state, isCurrent = isCurrent, viewModel = viewModel)
+    ControlsAutoHideEffect(state = state, isCurrent = isCurrent, viewModel = viewModel)
 
     val currentOnZoomChange by rememberUpdatedState(onZoomChange)
     LaunchedEffect(isZoomed) { currentOnZoomChange(isZoomed) }
@@ -235,65 +164,26 @@ actual fun VideoPage(
             Modifier
                 .fillMaxSize()
                 .onSizeChanged { containerSize = it }
-                .pointerInput(item.id) {
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        val firstUp =
-                            withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                                waitForUpOrCancellation()
-                            } ?: return@awaitEachGesture
-
-                        val secondDown =
-                            withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
-                                awaitFirstDown(requireUnconsumed = false)
-                            }
-                        if (secondDown == null) {
-                            viewModel.toggleToolbar()
-                            viewModel.toggleControls()
-                            return@awaitEachGesture
-                        }
-
-                        val anchor = secondDown.position
-                        var dragStarted = false
-                        var lastY = secondDown.position.y
-
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Main)
-                            val change = event.changes.firstOrNull { it.id == secondDown.id } ?: break
-
-                            if (!change.pressed) {
-                                if (!dragStarted) {
-                                    val width = containerSize.width
-                                    when {
-                                        width > 0 && anchor.x < width * SEEK_TAP_LEFT_FRACTION -> seekBy(-SEEK_STEP_MS)
-                                        width > 0 && anchor.x > width * SEEK_TAP_RIGHT_FRACTION -> seekBy(SEEK_STEP_MS)
-                                        else -> {
-                                            val target = if (scale > 1f) 1f else DOUBLE_TAP_ZOOM
-                                            setZoom(target, anchor)
-                                        }
-                                    }
-                                }
-                                break
-                            }
-
-                            if (!dragStarted) {
-                                val moved = (change.position - anchor).getDistance()
-                                if (moved > viewConfiguration.touchSlop) {
-                                    dragStarted = true
-                                    lastY = change.position.y
-                                    change.consume()
-                                }
-                            }
-
-                            if (dragStarted) {
-                                val dy = change.position.y - lastY
-                                lastY = change.position.y
-                                setZoom(scale * exp(dy / QUICK_ZOOM_SENSITIVITY_PX), anchor)
-                                change.consume()
-                            }
-                        }
-                    }
-                }.transformable(state = transformableState, lockRotationOnZoomPan = true),
+                .tapZoomSeekGestures(
+                    key = item.id,
+                    onSingleTap = {
+                        viewModel.toggleToolbar()
+                        viewModel.toggleControls()
+                    },
+                    onSecondTap = { anchor ->
+                        handleSecondTap(
+                            anchor = anchor,
+                            containerWidth = containerSize.width,
+                            onSeekBack = { seekBy(-SEEK_STEP_MS) },
+                            onSeekForward = { seekBy(SEEK_STEP_MS) },
+                            onToggleZoom = {
+                                val target = if (scale > 1f) 1f else DOUBLE_TAP_ZOOM
+                                setZoom(target, anchor)
+                            },
+                        )
+                    },
+                    onQuickZoom = { anchor, scaleMultiplier -> setZoom(scale * scaleMultiplier, anchor) },
+                ).transformable(state = transformableState, lockRotationOnZoomPan = true),
     ) {
         AndroidView(
             factory = { ctx ->
@@ -354,6 +244,112 @@ actual fun VideoPage(
             },
             onDismiss = { showSpeedSheet = false },
         )
+    }
+}
+
+/** Resolves a confirmed second tap into a seek (screen edges) or a zoom toggle (center). */
+private fun handleSecondTap(
+    anchor: Offset,
+    containerWidth: Int,
+    onSeekBack: () -> Unit,
+    onSeekForward: () -> Unit,
+    onToggleZoom: () -> Unit,
+) {
+    when {
+        containerWidth > 0 && anchor.x < containerWidth * SEEK_TAP_LEFT_FRACTION -> onSeekBack()
+        containerWidth > 0 && anchor.x > containerWidth * SEEK_TAP_RIGHT_FRACTION -> onSeekForward()
+        else -> onToggleZoom()
+    }
+}
+
+/** Drives the ExoPlayer lifecycle: media loading, saved position/speed, pause, and player events. */
+@Composable
+private fun PlayerStateEffects(
+    player: ExoPlayer,
+    item: MediaItem,
+    isActive: Boolean,
+    isCurrent: Boolean,
+    state: MediaViewerUiState.Ready,
+    viewModel: MediaViewerViewModel,
+) {
+    LaunchedEffect(item.filePath) {
+        player.setMediaItem(Media3MediaItem.fromUri(item.filePath))
+        player.prepare()
+    }
+
+    // Apply saved position / speed once the page becomes the current one.
+    LaunchedEffect(isCurrent) {
+        if (isCurrent) {
+            player.seekTo(state.positionMs)
+            player.playbackParameters = PlaybackParameters(state.playbackSpeed)
+        }
+    }
+
+    // Pause when the page leaves the viewport. Don't auto-play on activation —
+    // the user starts playback via the play button.
+    LaunchedEffect(isActive) {
+        if (!isActive) player.pause()
+    }
+
+    DisposableEffect(player) {
+        val listener =
+            object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isCurrent) viewModel.updatePlayingState(isPlaying)
+                }
+
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (isCurrent && playbackState == Player.STATE_READY) {
+                        viewModel.updateDuration(player.duration.coerceAtLeast(0L))
+                    }
+                }
+            }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
+    }
+}
+
+/** Polls the player position while playing and enforces the AB-repeat loop (current page only). */
+@Composable
+private fun PlaybackPollingEffect(
+    player: ExoPlayer,
+    state: MediaViewerUiState.Ready,
+    isCurrent: Boolean,
+    viewModel: MediaViewerViewModel,
+) {
+    LaunchedEffect(state.isPlaying, isCurrent) {
+        if (!isCurrent) return@LaunchedEffect
+        while (state.isPlaying) {
+            val currentPos = player.currentPosition
+            viewModel.updatePosition(currentPos)
+            val abStart = state.abStartMs
+            val abEnd = state.abEndMs
+            if (abStart != null && abEnd != null && currentPos >= abEnd) {
+                player.seekTo(abStart)
+            }
+            delay(POSITION_POLL_INTERVAL_MS)
+        }
+    }
+}
+
+/** Auto-hides the playback controls a few seconds after they appear during playback. */
+@Composable
+private fun ControlsAutoHideEffect(
+    state: MediaViewerUiState.Ready,
+    isCurrent: Boolean,
+    viewModel: MediaViewerViewModel,
+) {
+    LaunchedEffect(state.isControlsVisible, isCurrent) {
+        if (!isCurrent) return@LaunchedEffect
+        if (state.isControlsVisible) {
+            delay(CONTROLS_HIDE_DELAY_MS)
+            if (state.isPlaying && state.isControlsVisible) {
+                viewModel.toggleControls()
+            }
+        }
     }
 }
 
