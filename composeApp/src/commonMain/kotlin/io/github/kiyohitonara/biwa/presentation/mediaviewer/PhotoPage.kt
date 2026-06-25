@@ -35,8 +35,14 @@ private const val DOUBLE_TAP_ZOOM = 2f
 // Smaller value = more sensitive. 200px ≈ Google Maps' quick zoom feel.
 private const val QUICK_ZOOM_SENSITIVITY_PX = 200f
 
-/** Single zoomable photo page used inside [MediaViewerScreen]. */
+/**
+ * Single zoomable photo page used inside [MediaViewerScreen].
+ *
+ * The inline gesture state machine is intentionally branchy; extracting it would obscure the
+ * pointer-event flow, hence the complexity suppressions.
+ */
 @Composable
+@Suppress("CyclomaticComplexMethod", "LoopWithTooManyJumpStatements")
 fun PhotoPage(
     filePath: String,
     onTap: () -> Unit,
@@ -55,19 +61,17 @@ fun PhotoPage(
     //   instead of being locked at an upscaled, blurry fit-to-screen.
     val minScale by remember(imageIntrinsicSize, containerSize) {
         derivedStateOf {
-            if (imageIntrinsicSize.width <= 0 ||
-                imageIntrinsicSize.height <= 0 ||
-                containerSize.width <= 0 ||
-                containerSize.height <= 0
-            ) {
-                1f
-            } else {
+            val hasIntrinsicSize = imageIntrinsicSize.width > 0 && imageIntrinsicSize.height > 0
+            val hasContainerSize = containerSize.width > 0 && containerSize.height > 0
+            if (hasIntrinsicSize && hasContainerSize) {
                 val fitFactor =
                     min(
                         containerSize.width.toFloat() / imageIntrinsicSize.width,
                         containerSize.height.toFloat() / imageIntrinsicSize.height,
                     )
                 min(1f, 1f / fitFactor)
+            } else {
+                1f
             }
         }
     }

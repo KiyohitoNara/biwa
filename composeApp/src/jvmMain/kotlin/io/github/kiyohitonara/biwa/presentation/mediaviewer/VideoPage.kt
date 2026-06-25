@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 
 /** JVM stub — not used at runtime. */
+@Suppress("EmptyFunctionBlock")
 @Composable
 actual fun VideoPage(
     item: MediaItem,

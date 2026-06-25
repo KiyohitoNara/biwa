@@ -1,0 +1,26 @@
+# Base detekt configuration shared by all modules.
+# Rules are built upon detekt's default rule set (buildUponDefaultConfig = true),
+# so only overrides need to be declared here.
+
+style:
+  MaxLineLength:
+    # Line length is already enforced by ktlint; avoid duplicate reporting.
+    active: false
+  ReturnCount:
+    # Leading guard clauses (early returns) are idiomatic Kotlin and aid readability.
+    excludeGuardClauses: true
+
+empty-blocks:
+  EmptyFunctionBlock:
+    # No-op overrides in test fakes are intentional; only flag non-overridden blocks.
+    ignoreOverridden: true
+
+complexity:
+  LongMethod:
+    # Composable screens legitimately grow long; let Compose-specific rules govern them.
+    ignoreAnnotated: ['Composable']
+
+naming:
+  FunctionNaming:
+    # Composable functions follow PascalCase by convention.
+    ignoreAnnotated: ['Composable']

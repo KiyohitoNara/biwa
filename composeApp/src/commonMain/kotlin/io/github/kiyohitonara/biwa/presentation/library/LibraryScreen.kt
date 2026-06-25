@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions") // Screen file aggregates many small private composables.
+
 package io.github.kiyohitonara.biwa.presentation.library
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -78,6 +80,14 @@ import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementUiSta
 import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+
+private const val GRID_COLUMN_COUNT = 3
+
+// Visual treatment applied while reordering items.
+private const val DRAG_SCALE = 1.07f
+private const val DRAG_SHADOW_ELEVATION = 16f
+private const val DRAG_ALPHA = 0.85f
+private const val DRAG_DIMMED_ALPHA = 0.55f
 
 /** Screen that displays all media items in the library as a grid. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -412,7 +422,7 @@ private fun StaticMediaGrid(
     onLongPress: (MediaItem) -> Unit,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Fixed(GRID_COLUMN_COUNT),
         modifier = Modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -469,12 +479,12 @@ private fun DraggableMediaGrid(
                             }.graphicsLayer {
                                 when {
                                     isDragged -> {
-                                        scaleX = 1.07f
-                                        scaleY = 1.07f
-                                        shadowElevation = 16f
-                                        alpha = 0.85f
+                                        scaleX = DRAG_SCALE
+                                        scaleY = DRAG_SCALE
+                                        shadowElevation = DRAG_SHADOW_ELEVATION
+                                        alpha = DRAG_ALPHA
                                     }
-                                    isDragActive && !isDropTarget -> alpha = 0.55f
+                                    isDragActive && !isDropTarget -> alpha = DRAG_DIMMED_ALPHA
                                 }
                             }.pointerInput(item.id) {
                                 val slop = viewConfiguration.touchSlop
@@ -543,7 +553,7 @@ private fun MediaTypeBadge(
     item: MediaItem,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         when (item.mediaType) {
             MediaType.VIDEO ->
                 VideoBadge(

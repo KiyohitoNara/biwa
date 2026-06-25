@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
     alias(libs.plugins.sqldelight)
     alias(libs.plugins.skie)
 }
@@ -87,4 +88,10 @@ ktlint {
     filter {
         exclude { it.file.path.contains("/build/") }
     }
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    source.setFrom("src")
+    config.setFrom("$rootDir/config/detekt/detekt.yml")
 }

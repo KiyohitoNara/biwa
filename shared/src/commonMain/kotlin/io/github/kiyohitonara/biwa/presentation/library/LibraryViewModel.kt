@@ -223,6 +223,7 @@ class LibraryViewModel(
      * On success the item disappears from [uiState] automatically.
      * On failure an error message is emitted on [deleteError].
      */
+    @Suppress("TooGenericExceptionCaught") // Translate any use-case failure into a UI error event.
     fun deleteMedia(id: String) {
         log.i { "Delete media id=$id" }
         viewModelScope.launch {
@@ -246,6 +247,7 @@ class LibraryViewModel(
      *
      * No-op if [uris] is empty.
      */
+    @Suppress("TooGenericExceptionCaught") // Per-item failures are tallied, not propagated.
     fun addMedia(uris: List<String>) {
         if (uris.isEmpty()) return
         log.i { "Add media count=${uris.size}" }

@@ -24,6 +24,8 @@ class ThumbnailRepositoryImpl(
 ) : ThumbnailRepository {
     private val log = logger.withTag("ThumbnailRepository")
 
+    // Frame extraction can fail in many ways (codec, IO, AVFoundation state); degrade to null on any failure.
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun generateVideoThumbnail(videoPath: String): String? =
         withContext(Dispatchers.IO) {
             try {

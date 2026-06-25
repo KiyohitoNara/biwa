@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
 }
 
 kotlin {
@@ -94,10 +95,20 @@ android {
 dependencies {
     debugImplementation(libs.compose.uiTooling)
     ktlintRuleset(libs.compose.rules.ktlint)
+    detektPlugins(libs.compose.rules.detekt)
 }
 
 ktlint {
     filter {
         exclude { it.file.path.contains("/build/") }
     }
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    source.setFrom("src")
+    config.setFrom(
+        "$rootDir/config/detekt/detekt.yml",
+        "$rootDir/config/detekt/compose.yml",
+    )
 }

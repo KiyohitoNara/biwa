@@ -1,3 +1,5 @@
 package io.github.kiyohitonara.biwa.util
 
-actual fun currentEpochSeconds(): Long = System.currentTimeMillis() / 1000
+private const val MILLIS_PER_SECOND = 1000L
+
+actual fun currentEpochSeconds(): Long = System.currentTimeMillis() / MILLIS_PER_SECOND

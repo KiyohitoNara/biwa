@@ -60,7 +60,7 @@ import org.koin.core.parameter.parametersOf
  * via the platform-specific [VideoPage], which owns its own player. The top
  * toolbar is shared and exposes a Delete action.
  */
-@Suppress("ktlint:compose:vm-forwarding-check")
+@Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
 @Composable
 fun MediaViewerScreen(
     mediaId: String,
@@ -110,7 +110,7 @@ fun MediaViewerScreen(
     }
 }
 
-@Suppress("ktlint:compose:vm-forwarding-check")
+@Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
 @Composable
 private fun MediaViewerContent(
     state: MediaViewerUiState.Ready,

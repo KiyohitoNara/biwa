@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
  *
  * @param mediaId ID of the media item that should be shown first.
  */
+@Suppress("TooManyFunctions") // One method per user action on the viewer surface.
 class MediaViewerViewModel(
     private val mediaId: String,
     private val getAllMediaUseCase: GetAllMediaUseCase,

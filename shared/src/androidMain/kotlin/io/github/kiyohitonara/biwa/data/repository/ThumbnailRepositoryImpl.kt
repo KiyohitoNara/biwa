@@ -10,6 +10,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
+private const val JPEG_QUALITY = 80
+
 /** Android implementation that extracts frames via [MediaMetadataRetriever]. */
 class ThumbnailRepositoryImpl(
     private val context: Context,
@@ -17,6 +19,8 @@ class ThumbnailRepositoryImpl(
 ) : ThumbnailRepository {
     private val log = logger.withTag("ThumbnailRepository")
 
+    // Frame extraction can fail in many ways (codec, IO, retriever state); degrade to null on any failure.
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun generateVideoThumbnail(videoPath: String): String? =
         withContext(Dispatchers.IO) {
             try {
@@ -32,7 +36,7 @@ class ThumbnailRepositoryImpl(
                 val cacheDir = File(context.cacheDir, "thumbnails").also { it.mkdirs() }
                 val file = File(cacheDir, "${videoPath.hashCode()}.jpg")
                 FileOutputStream(file).use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
                 }
                 bitmap.recycle()
                 log.d { "Generated thumbnail for videoPath=$videoPath at ${file.absolutePath}" }

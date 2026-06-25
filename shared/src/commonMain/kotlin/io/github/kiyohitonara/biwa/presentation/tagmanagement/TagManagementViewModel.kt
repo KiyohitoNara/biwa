@@ -67,6 +67,7 @@ class TagManagementViewModel(
      *
      * Emits on [error] if the name is blank or already taken.
      */
+    @Suppress("TooGenericExceptionCaught") // Translate any use-case failure into a UI error event.
     fun createTag(name: String) {
         log.i { "Create tag name=$name" }
         viewModelScope.launch {
@@ -84,6 +85,7 @@ class TagManagementViewModel(
      *
      * Emits on [error] if the name is blank or already taken.
      */
+    @Suppress("TooGenericExceptionCaught") // Translate any use-case failure into a UI error event.
     fun renameTag(
         id: String,
         name: String,

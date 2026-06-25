@@ -85,6 +85,12 @@ private const val DOUBLE_TAP_ZOOM = 2f
 // Pixels of vertical drag that produce an e-fold (~2.72x) change in scale.
 private const val QUICK_ZOOM_SENSITIVITY_PX = 200f
 
+private const val POSITION_POLL_INTERVAL_MS = 100L
+
+// Single-tap zones: left third seeks back, right third seeks forward, center toggles zoom.
+private const val SEEK_TAP_LEFT_FRACTION = 1f / 3f
+private const val SEEK_TAP_RIGHT_FRACTION = 2f / 3f
+
 /**
  * Android implementation of a single video / GIF page backed by ExoPlayer.
  *
@@ -92,7 +98,15 @@ private const val QUICK_ZOOM_SENSITIVITY_PX = 200f
  * scrolled off-screen the page composable is disposed and the player released.
  */
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("ktlint:compose:modifier-missing-check")
+// modifier-missing / ModifierMissing: the signature is fixed by the expect/actual declaration.
+// CyclomaticComplexMethod / LoopWithTooManyJumpStatements: the inline gesture state machine is
+// inherently branchy; extracting it would obscure the pointer-event flow.
+@Suppress(
+    "ktlint:compose:modifier-missing-check",
+    "ModifierMissing",
+    "CyclomaticComplexMethod",
+    "LoopWithTooManyJumpStatements",
+)
 @Composable
 actual fun VideoPage(
     item: MediaItem,
@@ -164,7 +178,7 @@ actual fun VideoPage(
             if (abStart != null && abEnd != null && currentPos >= abEnd) {
                 player.seekTo(abStart)
             }
-            delay(100)
+            delay(POSITION_POLL_INTERVAL_MS)
         }
     }
 
@@ -251,8 +265,8 @@ actual fun VideoPage(
                                 if (!dragStarted) {
                                     val width = containerSize.width
                                     when {
-                                        width > 0 && anchor.x < width / 3f -> seekBy(-SEEK_STEP_MS)
-                                        width > 0 && anchor.x > width * 2f / 3f -> seekBy(SEEK_STEP_MS)
+                                        width > 0 && anchor.x < width * SEEK_TAP_LEFT_FRACTION -> seekBy(-SEEK_STEP_MS)
+                                        width > 0 && anchor.x > width * SEEK_TAP_RIGHT_FRACTION -> seekBy(SEEK_STEP_MS)
                                         else -> {
                                             val target = if (scale > 1f) 1f else DOUBLE_TAP_ZOOM
                                             setZoom(target, anchor)

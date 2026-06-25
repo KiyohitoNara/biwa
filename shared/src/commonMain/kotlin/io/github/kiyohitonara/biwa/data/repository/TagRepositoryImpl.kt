@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 import io.github.kiyohitonara.biwa.domain.model.Tag as DomainTag
 
 /** SQLDelight-backed implementation of [TagRepository]. */
+@Suppress("TooManyFunctions") // Mirrors the TagRepository CRUD interface surface.
 class TagRepositoryImpl(
     driver: SqlDriver,
     logger: Logger,
