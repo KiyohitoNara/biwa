@@ -15,10 +15,8 @@ empty-blocks:
     # No-op overrides in test fakes are intentional; only flag non-overridden blocks.
     ignoreOverridden: true
 
-complexity:
-  LongMethod:
-    # Composable screens legitimately grow long; let Compose-specific rules govern them.
-    ignoreAnnotated: ['Composable']
+# LongMethod and CyclomaticComplexMethod (complexity ruleset) are intentionally left at their
+# defaults and NOT excluded for @Composable, so giant composables fail the build.
 
 naming:
   FunctionNaming:

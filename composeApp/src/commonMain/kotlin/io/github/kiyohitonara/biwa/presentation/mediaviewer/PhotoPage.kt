@@ -5,7 +5,6 @@ import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,46 +37,23 @@ fun PhotoPage(
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var imageIntrinsicSize by remember { mutableStateOf(IntSize.Zero) }
 
-    // Lower bound for [scale]:
-    //   1.0 when the natural image is larger than the viewport — fit-to-screen stays the floor.
-    //   <1.0 when the natural image is smaller — let the user pinch down to 1:1 pixels
-    //   instead of being locked at an upscaled, blurry fit-to-screen.
-    val minScale by remember(imageIntrinsicSize, containerSize) {
-        derivedStateOf {
-            val hasIntrinsicSize = imageIntrinsicSize.width > 0 && imageIntrinsicSize.height > 0
-            val hasContainerSize = containerSize.width > 0 && containerSize.height > 0
-            if (hasIntrinsicSize && hasContainerSize) {
-                val fitFactor =
-                    min(
-                        containerSize.width.toFloat() / imageIntrinsicSize.width,
-                        containerSize.height.toFloat() / imageIntrinsicSize.height,
-                    )
-                min(1f, 1f / fitFactor)
-            } else {
-                1f
-            }
-        }
-    }
+    val minScale = rememberMinScale(imageIntrinsicSize, containerSize)
 
     fun setZoom(
         newScaleUnclamped: Float,
         anchor: Offset,
     ) {
-        val newScale = newScaleUnclamped.coerceIn(minScale, MAX_ZOOM)
-        if (newScale <= 1f) {
-            scale = newScale
-            offset = Offset.Zero
-        } else {
-            val ratio = newScale / scale.coerceAtLeast(0.0001f)
-            val cx = containerSize.width / 2f
-            val cy = containerSize.height / 2f
-            offset =
-                Offset(
-                    (anchor.x - cx) * (1f - ratio) + offset.x * ratio,
-                    (anchor.y - cy) * (1f - ratio) + offset.y * ratio,
-                )
-            scale = newScale
-        }
+        val result =
+            zoomAround(
+                current = ZoomTransform(scale, offset),
+                newScaleUnclamped = newScaleUnclamped,
+                anchor = anchor,
+                containerSize = containerSize,
+                minScale = minScale,
+                maxScale = MAX_ZOOM,
+            )
+        scale = result.scale
+        offset = result.offset
         onZoomChange(scale > 1f)
     }
 
@@ -127,3 +103,30 @@ fun PhotoPage(
         )
     }
 }
+
+/**
+ * Lower bound for the photo's zoom scale.
+ *
+ * Returns 1.0 when the natural image is larger than the viewport (fit-to-screen stays the floor),
+ * or a value < 1.0 when the image is smaller, letting the user pinch down to 1:1 pixels instead of
+ * being locked at an upscaled, blurry fit-to-screen.
+ */
+@Composable
+private fun rememberMinScale(
+    imageIntrinsicSize: IntSize,
+    containerSize: IntSize,
+): Float =
+    remember(imageIntrinsicSize, containerSize) {
+        val hasIntrinsicSize = imageIntrinsicSize.width > 0 && imageIntrinsicSize.height > 0
+        val hasContainerSize = containerSize.width > 0 && containerSize.height > 0
+        if (hasIntrinsicSize && hasContainerSize) {
+            val fitFactor =
+                min(
+                    containerSize.width.toFloat() / imageIntrinsicSize.width,
+                    containerSize.height.toFloat() / imageIntrinsicSize.height,
+                )
+            min(1f, 1f / fitFactor)
+        } else {
+            1f
+        }
+    }

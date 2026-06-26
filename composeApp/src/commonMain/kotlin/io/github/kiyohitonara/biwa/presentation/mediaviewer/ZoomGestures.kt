@@ -7,12 +7,47 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.exp
 
 // Pixels of vertical drag that produce an e-fold (~2.72x) change in scale.
 // Smaller value = more sensitive. 200px ≈ Google Maps' quick zoom feel.
 private const val QUICK_ZOOM_SENSITIVITY_PX = 200f
+
+/** A zoom state: the clamped [scale] and the recentered pan [offset]. */
+data class ZoomTransform(
+    val scale: Float,
+    val offset: Offset,
+)
+
+/**
+ * Computes the new [ZoomTransform] when zooming from [current] to [newScaleUnclamped] around
+ * [anchor], keeping the anchored point stationary on screen. Shared by the photo and video pages.
+ *
+ * @param newScaleUnclamped Desired scale before clamping into [minScale]..[maxScale].
+ */
+fun zoomAround(
+    current: ZoomTransform,
+    newScaleUnclamped: Float,
+    anchor: Offset,
+    containerSize: IntSize,
+    minScale: Float,
+    maxScale: Float,
+): ZoomTransform {
+    val newScale = newScaleUnclamped.coerceIn(minScale, maxScale)
+    if (newScale <= 1f) return ZoomTransform(newScale, Offset.Zero)
+
+    val ratio = newScale / current.scale.coerceAtLeast(0.0001f)
+    val cx = containerSize.width / 2f
+    val cy = containerSize.height / 2f
+    val newOffset =
+        Offset(
+            (anchor.x - cx) * (1f - ratio) + current.offset.x * ratio,
+            (anchor.y - cy) * (1f - ratio) + current.offset.y * ratio,
+        )
+    return ZoomTransform(newScale, newOffset)
+}
 
 /**
  * Recognizes the media viewer's tap / double-tap / quick-zoom gesture protocol.

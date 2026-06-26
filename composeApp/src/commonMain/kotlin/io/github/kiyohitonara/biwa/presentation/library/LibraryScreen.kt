@@ -53,6 +53,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -91,6 +92,7 @@ private const val DRAG_DIMMED_ALPHA = 0.55f
 
 /** Screen that displays all media items in the library as a grid. */
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
 @Composable
 fun LibraryScreen(
     onOpenMediaViewer: (String) -> Unit,
@@ -104,69 +106,22 @@ fun LibraryScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var contextItem by remember { mutableStateOf<MediaItem?>(null) }
     var showSortSheet by remember { mutableStateOf(false) }
-    var showOverflowMenu by remember { mutableStateOf(false) }
     var pickerActive by remember { mutableStateOf(false) }
 
-    LaunchedEffect(viewModel.deleteError) {
-        viewModel.deleteError.collect { message ->
-            snackbarHostState.showSnackbar(message)
-        }
-    }
-
-    LaunchedEffect(viewModel.addMediaError) {
-        viewModel.addMediaError.collect { message ->
-            snackbarHostState.showSnackbar(message)
-        }
-    }
-
-    val currentOnOpenMediaViewer by rememberUpdatedState(onOpenMediaViewer)
-    LaunchedEffect(viewModel.navEffect) {
-        viewModel.navEffect.collect { effect ->
-            when (effect) {
-                is LibraryNavEffect.OpenMediaViewer -> currentOnOpenMediaViewer(effect.id)
-            }
-        }
-    }
+    LibraryEffects(
+        viewModel = viewModel,
+        snackbarHostState = snackbarHostState,
+        onOpenMediaViewer = onOpenMediaViewer,
+    )
 
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { Text("Library") },
-                actions = {
-                    IconButton(onClick = onManageTags) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Label,
-                            contentDescription = "Manage tags",
-                        )
-                    }
-                    val successState = uiState as? LibraryUiState.Success
-                    val sortEnabled = (successState?.activeTagIds?.size ?: 0) <= 1
-                    IconButton(onClick = { showSortSheet = true }, enabled = sortEnabled) {
-                        Icon(
-                            imageVector = Icons.Filled.SwapVert,
-                            contentDescription = "Sort",
-                        )
-                    }
-                    IconButton(onClick = { showOverflowMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.MoreVert,
-                            contentDescription = "More options",
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showOverflowMenu,
-                        onDismissRequest = { showOverflowMenu = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Settings") },
-                            onClick = {
-                                showOverflowMenu = false
-                                onOpenSettings()
-                            },
-                        )
-                    }
-                },
+            LibraryTopBar(
+                sortEnabled = (uiState as? LibraryUiState.Success)?.let { it.activeTagIds.size <= 1 } ?: true,
+                onManageTags = onManageTags,
+                onSort = { showSortSheet = true },
+                onOpenSettings = onOpenSettings,
             )
         },
         floatingActionButton = {
@@ -176,44 +131,16 @@ fun LibraryScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Column(
+        LibraryContent(
+            uiState = uiState,
+            isAdding = isAdding,
+            viewModel = viewModel,
+            onLongPress = { contextItem = it },
             modifier =
                 Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-        ) {
-            if (isAdding) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-            val successState = uiState as? LibraryUiState.Success
-            TagFilterChipsRow(
-                availableTags = successState?.availableTags ?: emptyList(),
-                activeTagIds = successState?.activeTagIds ?: emptySet(),
-                onTagToggle = viewModel::toggleTag,
-            )
-
-            Box(modifier = Modifier.fillMaxSize()) {
-                when (val state = uiState) {
-                    is LibraryUiState.Loading -> {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    }
-                    is LibraryUiState.Success -> {
-                        if (state.items.isEmpty()) {
-                            EmptyLibrary(modifier = Modifier.align(Alignment.Center))
-                        } else {
-                            val multiTagActive = state.activeTagIds.size > 1
-                            MediaGrid(
-                                items = state.items,
-                                draggable = !multiTagActive,
-                                onTap = { viewModel.openMedia(it.id) },
-                                onLongPress = { contextItem = it },
-                                onReorder = viewModel::reorderMedia,
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        )
     }
 
     MediaPicker(
@@ -225,13 +152,32 @@ fun LibraryScreen(
         onCancel = { pickerActive = false },
     )
 
+    LibrarySheets(
+        showSortSheet = showSortSheet,
+        contextItem = contextItem,
+        viewModel = viewModel,
+        onDismissSort = { showSortSheet = false },
+        onDismissContext = { contextItem = null },
+    )
+}
+
+/** The sort-order and per-item context bottom sheets shown over the library. */
+@Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
+@Composable
+private fun LibrarySheets(
+    showSortSheet: Boolean,
+    contextItem: MediaItem?,
+    viewModel: LibraryViewModel,
+    onDismissSort: () -> Unit,
+    onDismissContext: () -> Unit,
+) {
     if (showSortSheet) {
         SortSelectionSheet(
             onSortSelect = {
                 viewModel.setSortOrder(it)
-                showSortSheet = false
+                onDismissSort()
             },
-            onDismiss = { showSortSheet = false },
+            onDismiss = onDismissSort,
         )
     }
 
@@ -240,10 +186,122 @@ fun LibraryScreen(
             item = item,
             onDelete = {
                 viewModel.deleteMedia(item.id)
-                contextItem = null
+                onDismissContext()
             },
-            onDismiss = { contextItem = null },
+            onDismiss = onDismissContext,
         )
+    }
+}
+
+/** Collects the library's one-shot snackbar and navigation effects. */
+@Composable
+private fun LibraryEffects(
+    viewModel: LibraryViewModel,
+    snackbarHostState: SnackbarHostState,
+    onOpenMediaViewer: (String) -> Unit,
+) {
+    LaunchedEffect(viewModel.deleteError) {
+        viewModel.deleteError.collect { message -> snackbarHostState.showSnackbar(message) }
+    }
+    LaunchedEffect(viewModel.addMediaError) {
+        viewModel.addMediaError.collect { message -> snackbarHostState.showSnackbar(message) }
+    }
+    val currentOnOpenMediaViewer by rememberUpdatedState(onOpenMediaViewer)
+    LaunchedEffect(viewModel.navEffect) {
+        viewModel.navEffect.collect { effect ->
+            when (effect) {
+                is LibraryNavEffect.OpenMediaViewer -> currentOnOpenMediaViewer(effect.id)
+            }
+        }
+    }
+}
+
+/** Library top app bar with manage-tags, sort, and overflow (settings) actions. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LibraryTopBar(
+    sortEnabled: Boolean,
+    onManageTags: () -> Unit,
+    onSort: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    TopAppBar(
+        title = { Text("Library") },
+        actions = {
+            IconButton(onClick = onManageTags) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Label,
+                    contentDescription = "Manage tags",
+                )
+            }
+            IconButton(onClick = onSort, enabled = sortEnabled) {
+                Icon(
+                    imageVector = Icons.Filled.SwapVert,
+                    contentDescription = "Sort",
+                )
+            }
+            IconButton(onClick = { showOverflowMenu = true }) {
+                Icon(
+                    imageVector = Icons.Filled.MoreVert,
+                    contentDescription = "More options",
+                )
+            }
+            DropdownMenu(
+                expanded = showOverflowMenu,
+                onDismissRequest = { showOverflowMenu = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Settings") },
+                    onClick = {
+                        showOverflowMenu = false
+                        onOpenSettings()
+                    },
+                )
+            }
+        },
+    )
+}
+
+/** Scaffold body: optional progress bar, tag filter row, and the media grid / empty state. */
+@Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
+@Composable
+private fun LibraryContent(
+    uiState: LibraryUiState,
+    isAdding: Boolean,
+    viewModel: LibraryViewModel,
+    onLongPress: (MediaItem) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        if (isAdding) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+        val successState = uiState as? LibraryUiState.Success
+        TagFilterChipsRow(
+            availableTags = successState?.availableTags ?: emptyList(),
+            activeTagIds = successState?.activeTagIds ?: emptySet(),
+            onTagToggle = viewModel::toggleTag,
+        )
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (uiState) {
+                is LibraryUiState.Loading ->
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                is LibraryUiState.Success ->
+                    if (uiState.items.isEmpty()) {
+                        EmptyLibrary(modifier = Modifier.align(Alignment.Center))
+                    } else {
+                        MediaGrid(
+                            items = uiState.items,
+                            draggable = uiState.activeTagIds.size <= 1,
+                            onTap = { viewModel.openMedia(it.id) },
+                            onLongPress = onLongPress,
+                            onReorder = viewModel::reorderMedia,
+                        )
+                    }
+            }
+        }
     }
 }
 
@@ -451,12 +509,8 @@ private fun DraggableMediaGrid(
     onLongPress: (MediaItem) -> Unit,
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
 ) {
-    // Mutable map — not snapshot state to avoid recomposition during onGloballyPositioned
-    val itemBounds = remember { HashMap<String, Rect>() }
-    var draggedKey by remember { mutableStateOf<String?>(null) }
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
-    var dragStartBounds by remember { mutableStateOf(Rect.Zero) }
-    var dropTargetKey by remember { mutableStateOf<String?>(null) }
+    val reorderState = remember { ReorderState() }
+    val actions = remember(onTap, onLongPress, onReorder) { GridItemActions(onTap, onLongPress, onReorder) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyVerticalGrid(
@@ -465,76 +519,122 @@ private fun DraggableMediaGrid(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                val isDragged = item.id == draggedKey
-                val isDropTarget = item.id == dropTargetKey && !isDragged
-                val isDragActive = draggedKey != null
-
-                Box(
-                    modifier =
-                        Modifier
-                            .aspectRatio(1f)
-                            .onGloballyPositioned { coords ->
-                                itemBounds[item.id] = coords.boundsInRoot()
-                            }.graphicsLayer {
-                                when {
-                                    isDragged -> {
-                                        scaleX = DRAG_SCALE
-                                        scaleY = DRAG_SCALE
-                                        shadowElevation = DRAG_SHADOW_ELEVATION
-                                        alpha = DRAG_ALPHA
-                                    }
-                                    isDragActive && !isDropTarget -> alpha = DRAG_DIMMED_ALPHA
-                                }
-                            }.pointerInput(item.id) {
-                                val slop = viewConfiguration.touchSlop
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { _ ->
-                                        draggedKey = item.id
-                                        dropTargetKey = item.id
-                                        dragOffset = Offset.Zero
-                                        dragStartBounds = itemBounds[item.id] ?: Rect.Zero
-                                    },
-                                    onDrag = { _, amount ->
-                                        dragOffset += amount
-                                        val pointerPos =
-                                            Offset(
-                                                dragStartBounds.center.x + dragOffset.x,
-                                                dragStartBounds.center.y + dragOffset.y,
-                                            )
-                                        dropTargetKey =
-                                            itemBounds.entries
-                                                .minByOrNull { (_, bounds) ->
-                                                    (pointerPos - bounds.center).getDistance()
-                                                }?.key
-                                    },
-                                    onDragEnd = {
-                                        val draggedItemId = draggedKey
-                                        val fromIdx = items.indexOfFirst { it.id == draggedItemId }
-                                        val toIdx = items.indexOfFirst { it.id == dropTargetKey }
-                                        val moved = dragOffset.getDistance() > slop
-                                        if (!moved && draggedItemId != null) {
-                                            items.firstOrNull { it.id == draggedItemId }?.let(onLongPress)
-                                        } else if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
-                                            onReorder(fromIdx, toIdx)
-                                        }
-                                        draggedKey = null
-                                        dropTargetKey = null
-                                        dragOffset = Offset.Zero
-                                    },
-                                    onDragCancel = {
-                                        draggedKey = null
-                                        dropTargetKey = null
-                                        dragOffset = Offset.Zero
-                                    },
-                                )
-                            }.clickable { if (draggedKey == null) onTap(item) },
-                ) {
-                    ThumbnailImage(item)
-                    MediaTypeBadge(item)
-                }
+            itemsIndexed(items, key = { _, item -> item.id }) { _, item ->
+                DraggableGridItem(
+                    item = item,
+                    items = items,
+                    state = reorderState,
+                    actions = actions,
+                    modifier = Modifier.aspectRatio(1f),
+                )
             }
         }
+    }
+}
+
+/** Tap / long-press / reorder callbacks for a draggable grid item. */
+private class GridItemActions(
+    val onTap: (MediaItem) -> Unit,
+    val onLongPress: (MediaItem) -> Unit,
+    val onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
+)
+
+/**
+ * Drag-and-drop reorder state shared across the grid's items.
+ *
+ * [draggedKey] / [dropTargetKey] are snapshot state because items read them while composing;
+ * [itemBounds] and the drag deltas are plain fields since they are only touched inside gestures.
+ */
+@Stable
+private class ReorderState {
+    val itemBounds = HashMap<String, Rect>()
+
+    var draggedKey by mutableStateOf<String?>(null)
+        private set
+    var dropTargetKey by mutableStateOf<String?>(null)
+        private set
+
+    private var dragOffset = Offset.Zero
+    private var dragStartBounds = Rect.Zero
+
+    val isDragging: Boolean get() = draggedKey != null
+
+    fun isDragged(id: String): Boolean = id == draggedKey
+
+    fun isDropTarget(id: String): Boolean = id == dropTargetKey && id != draggedKey
+
+    fun start(id: String) {
+        draggedKey = id
+        dropTargetKey = id
+        dragOffset = Offset.Zero
+        dragStartBounds = itemBounds[id] ?: Rect.Zero
+    }
+
+    fun drag(amount: Offset) {
+        dragOffset += amount
+        val pointer = Offset(dragStartBounds.center.x + dragOffset.x, dragStartBounds.center.y + dragOffset.y)
+        dropTargetKey = itemBounds.entries.minByOrNull { (_, bounds) -> (pointer - bounds.center).getDistance() }?.key
+    }
+
+    fun reset() {
+        draggedKey = null
+        dropTargetKey = null
+        dragOffset = Offset.Zero
+    }
+
+    fun dragDistance(): Float = dragOffset.getDistance()
+}
+
+/** A single reorderable grid cell with drag-to-move, long-press, and tap handling. */
+@Composable
+private fun DraggableGridItem(
+    item: MediaItem,
+    items: List<MediaItem>,
+    state: ReorderState,
+    actions: GridItemActions,
+    modifier: Modifier = Modifier,
+) {
+    val isDragged = state.isDragged(item.id)
+    val isDropTarget = state.isDropTarget(item.id)
+    val isDragActive = state.isDragging
+
+    Box(
+        modifier =
+            modifier
+                .onGloballyPositioned { coords -> state.itemBounds[item.id] = coords.boundsInRoot() }
+                .graphicsLayer {
+                    when {
+                        isDragged -> {
+                            scaleX = DRAG_SCALE
+                            scaleY = DRAG_SCALE
+                            shadowElevation = DRAG_SHADOW_ELEVATION
+                            alpha = DRAG_ALPHA
+                        }
+                        isDragActive && !isDropTarget -> alpha = DRAG_DIMMED_ALPHA
+                    }
+                }.pointerInput(item.id) {
+                    val slop = viewConfiguration.touchSlop
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { state.start(item.id) },
+                        onDrag = { _, amount -> state.drag(amount) },
+                        onDragEnd = {
+                            val draggedItemId = state.draggedKey
+                            val fromIdx = items.indexOfFirst { it.id == draggedItemId }
+                            val toIdx = items.indexOfFirst { it.id == state.dropTargetKey }
+                            val moved = state.dragDistance() > slop
+                            if (!moved && draggedItemId != null) {
+                                items.firstOrNull { it.id == draggedItemId }?.let(actions.onLongPress)
+                            } else if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
+                                actions.onReorder(fromIdx, toIdx)
+                            }
+                            state.reset()
+                        },
+                        onDragCancel = { state.reset() },
+                    )
+                }.clickable { if (!state.isDragging) actions.onTap(item) },
+    ) {
+        ThumbnailImage(item)
+        MediaTypeBadge(item)
     }
 }
 

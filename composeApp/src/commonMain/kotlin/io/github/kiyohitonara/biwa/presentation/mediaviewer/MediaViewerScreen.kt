@@ -141,26 +141,14 @@ private fun MediaViewerContent(
             userScrollEnabled = !isZoomed,
             modifier = Modifier.fillMaxSize(),
         ) { page ->
-            val item = state.items[page]
-            val isActive = page == pagerState.currentPage
-            when (item.mediaType) {
-                MediaType.PHOTO ->
-                    PhotoPage(
-                        filePath = item.filePath,
-                        onTap = viewModel::toggleToolbar,
-                        rotationDegrees = if (isActive) rotationDegrees else 0,
-                        onZoomChange = { zoomed -> isZoomed = zoomed },
-                    )
-                MediaType.VIDEO, MediaType.GIF ->
-                    VideoPage(
-                        item = item,
-                        isActive = isActive,
-                        state = state,
-                        viewModel = viewModel,
-                        rotationDegrees = if (isActive) rotationDegrees else 0,
-                        onZoomChange = { zoomed -> isZoomed = zoomed },
-                    )
-            }
+            MediaPage(
+                item = state.items[page],
+                isActive = page == pagerState.currentPage,
+                rotationDegrees = rotationDegrees,
+                state = state,
+                viewModel = viewModel,
+                onZoomChange = { zoomed -> isZoomed = zoomed },
+            )
         }
 
         val currentMediaType = state.items.getOrNull(state.currentIndex)?.mediaType
@@ -184,6 +172,36 @@ private fun MediaViewerContent(
     }
 }
 
+@Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
+@Composable
+private fun MediaPage(
+    item: MediaItem,
+    isActive: Boolean,
+    rotationDegrees: Int,
+    state: MediaViewerUiState.Ready,
+    viewModel: MediaViewerViewModel,
+    onZoomChange: (Boolean) -> Unit,
+) {
+    when (item.mediaType) {
+        MediaType.PHOTO ->
+            PhotoPage(
+                filePath = item.filePath,
+                onTap = viewModel::toggleToolbar,
+                rotationDegrees = if (isActive) rotationDegrees else 0,
+                onZoomChange = onZoomChange,
+            )
+        MediaType.VIDEO, MediaType.GIF ->
+            VideoPage(
+                item = item,
+                isActive = isActive,
+                state = state,
+                viewModel = viewModel,
+                rotationDegrees = if (isActive) rotationDegrees else 0,
+                onZoomChange = onZoomChange,
+            )
+    }
+}
+
 @Composable
 private fun TopToolbar(
     state: MediaViewerUiState.Ready,
@@ -194,8 +212,6 @@ private fun TopToolbar(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showOverflowMenu by remember { mutableStateOf(false) }
-
     AnimatedVisibility(
         visible = state.isToolbarVisible,
         enter = fadeIn(),
@@ -246,27 +262,33 @@ private fun TopToolbar(
                     tint = Color.White,
                 )
             }
-            Box {
-                IconButton(onClick = { showOverflowMenu = true }) {
-                    Icon(
-                        imageVector = Icons.Filled.MoreVert,
-                        contentDescription = "More options",
-                        tint = Color.White,
-                    )
-                }
-                DropdownMenu(
-                    expanded = showOverflowMenu,
-                    onDismissRequest = { showOverflowMenu = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Delete") },
-                        onClick = {
-                            showOverflowMenu = false
-                            onDelete()
-                        },
-                    )
-                }
-            }
+            OverflowMenu(onDelete = onDelete)
+        }
+    }
+}
+
+@Composable
+private fun OverflowMenu(onDelete: () -> Unit) {
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { showOverflowMenu = true }) {
+            Icon(
+                imageVector = Icons.Filled.MoreVert,
+                contentDescription = "More options",
+                tint = Color.White,
+            )
+        }
+        DropdownMenu(
+            expanded = showOverflowMenu,
+            onDismissRequest = { showOverflowMenu = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("Delete") },
+                onClick = {
+                    showOverflowMenu = false
+                    onDelete()
+                },
+            )
         }
     }
 }

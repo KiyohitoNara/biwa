@@ -49,6 +49,7 @@ import org.koin.core.parameter.parametersOf
 
 /** Screen for creating, renaming, and deleting tags globally. */
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
 @Composable
 fun TagManagementScreen(
     onBack: () -> Unit,
@@ -69,19 +70,7 @@ fun TagManagementScreen(
 
     Scaffold(
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text("Tags") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
-                    }
-                },
-            )
-        },
+        topBar = { TagTopBar(onBack = onBack) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateDialog = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Add tag")
@@ -89,35 +78,15 @@ fun TagManagementScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        val ready = uiState as? TagManagementUiState.Ready
-
-        if (ready != null && ready.allTags.isEmpty()) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                EmptyTags()
-            }
-        } else if (ready != null) {
-            LazyColumn(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-            ) {
-                items(ready.allTags, key = { it.id }) { tag ->
-                    TagRow(
-                        tag = tag,
-                        onRename = { renameTarget = tag },
-                        onDelete = { deleteTarget = tag },
-                    )
-                    HorizontalDivider()
-                }
-            }
-        }
+        TagList(
+            uiState = uiState,
+            onRename = { renameTarget = it },
+            onDelete = { deleteTarget = it },
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+        )
     }
 
     if (showCreateDialog) {
@@ -132,15 +101,78 @@ fun TagManagementScreen(
         )
     }
 
+    TagEditDialogs(
+        renameTarget = renameTarget,
+        deleteTarget = deleteTarget,
+        viewModel = viewModel,
+        onDismissRename = { renameTarget = null },
+        onDismissDelete = { deleteTarget = null },
+    )
+}
+
+/** Tag screen top app bar with a back navigation icon. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TagTopBar(onBack: () -> Unit) {
+    TopAppBar(
+        title = { Text("Tags") },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                )
+            }
+        },
+    )
+}
+
+/** Renders the empty state or the scrollable list of tags. */
+@Composable
+private fun TagList(
+    uiState: TagManagementUiState,
+    onRename: (Tag) -> Unit,
+    onDelete: (Tag) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val ready = uiState as? TagManagementUiState.Ready ?: return
+    if (ready.allTags.isEmpty()) {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            EmptyTags()
+        }
+    } else {
+        LazyColumn(modifier = modifier) {
+            items(ready.allTags, key = { it.id }) { tag ->
+                TagRow(
+                    tag = tag,
+                    onRename = { onRename(tag) },
+                    onDelete = { onDelete(tag) },
+                )
+                HorizontalDivider()
+            }
+        }
+    }
+}
+
+/** The rename and delete confirmation dialogs, shown when their target tag is set. */
+@Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
+@Composable
+private fun TagEditDialogs(
+    renameTarget: Tag?,
+    deleteTarget: Tag?,
+    viewModel: TagManagementViewModel,
+    onDismissRename: () -> Unit,
+    onDismissDelete: () -> Unit,
+) {
     renameTarget?.let { tag ->
         TagNameDialog(
             title = "Rename tag",
             initialName = tag.name,
             onConfirm = { name ->
                 viewModel.renameTag(tag.id, name)
-                renameTarget = null
+                onDismissRename()
             },
-            onDismiss = { renameTarget = null },
+            onDismiss = onDismissRename,
         )
     }
 
@@ -149,9 +181,9 @@ fun TagManagementScreen(
             tagName = tag.name,
             onConfirm = {
                 viewModel.deleteTag(tag.id)
-                deleteTarget = null
+                onDismissDelete()
             },
-            onDismiss = { deleteTarget = null },
+            onDismiss = onDismissDelete,
         )
     }
 }

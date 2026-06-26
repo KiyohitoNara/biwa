@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions") // Video page is composed of many small private helpers.
+
 package io.github.kiyohitonara.biwa.presentation.mediaviewer
 
 import android.view.LayoutInflater
@@ -37,7 +39,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -103,10 +104,8 @@ actual fun VideoPage(
     val player = remember(item.id) { ExoPlayer.Builder(context).build() }
     var showSpeedSheet by remember { mutableStateOf(false) }
 
-    var scale by remember(item.id) { mutableFloatStateOf(1f) }
-    var offset by remember(item.id) { mutableStateOf(Offset.Zero) }
+    val zoom = remember(item.id) { ZoomableState(maxScale = MAX_ZOOM) }
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    val isZoomed = scale > 1f
 
     // The state-derived fields only apply to this video while it is the current item.
     val isCurrent = state.items.getOrNull(state.currentIndex)?.id == item.id
@@ -122,8 +121,7 @@ actual fun VideoPage(
     PlaybackPollingEffect(player = player, state = state, isCurrent = isCurrent, viewModel = viewModel)
     ControlsAutoHideEffect(state = state, isCurrent = isCurrent, viewModel = viewModel)
 
-    val currentOnZoomChange by rememberUpdatedState(onZoomChange)
-    LaunchedEffect(isZoomed) { currentOnZoomChange(isZoomed) }
+    ReportZoomChange(isZoomed = zoom.isZoomed, onZoomChange = onZoomChange)
 
     fun seekBy(deltaMs: Long) {
         val newPos = (player.currentPosition + deltaMs).coerceIn(0L, player.duration.coerceAtLeast(0L))
@@ -131,121 +129,78 @@ actual fun VideoPage(
         viewModel.updatePosition(newPos)
     }
 
-    fun setZoom(
-        newScaleUnclamped: Float,
-        anchor: Offset,
-    ) {
-        val newScale = newScaleUnclamped.coerceIn(1f, MAX_ZOOM)
-        if (newScale <= 1f) {
-            scale = newScale
-            offset = Offset.Zero
-        } else {
-            val ratio = newScale / scale.coerceAtLeast(0.0001f)
-            val cx = containerSize.width / 2f
-            val cy = containerSize.height / 2f
-            offset =
-                Offset(
-                    (anchor.x - cx) * (1f - ratio) + offset.x * ratio,
-                    (anchor.y - cy) * (1f - ratio) + offset.y * ratio,
-                )
-            scale = newScale
-        }
-    }
-
-    val transformableState =
-        rememberTransformableState { zoomChange, panChange, _ ->
-            val newScale = (scale * zoomChange).coerceIn(1f, MAX_ZOOM)
-            scale = newScale
-            offset = if (newScale > 1f) offset + panChange else Offset.Zero
-        }
+    val transformableState = rememberTransformableState { z, p, _ -> zoom.pinch(z, p) }
 
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
                 .onSizeChanged { containerSize = it }
-                .tapZoomSeekGestures(
+                .videoViewerGestures(
                     key = item.id,
+                    zoom = zoom,
+                    containerSize = { containerSize },
                     onSingleTap = {
                         viewModel.toggleToolbar()
                         viewModel.toggleControls()
                     },
-                    onSecondTap = { anchor ->
-                        handleSecondTap(
-                            anchor = anchor,
-                            containerWidth = containerSize.width,
-                            onSeekBack = { seekBy(-SEEK_STEP_MS) },
-                            onSeekForward = { seekBy(SEEK_STEP_MS) },
-                            onToggleZoom = {
-                                val target = if (scale > 1f) 1f else DOUBLE_TAP_ZOOM
-                                setZoom(target, anchor)
-                            },
-                        )
-                    },
-                    onQuickZoom = { anchor, scaleMultiplier -> setZoom(scale * scaleMultiplier, anchor) },
+                    onSeek = { delta -> seekBy(delta) },
                 ).transformable(state = transformableState, lockRotationOnZoomPan = true),
     ) {
-        AndroidView(
-            factory = { ctx ->
-                (LayoutInflater.from(ctx).inflate(R.layout.zoomable_player_view, null) as PlayerView).apply {
-                    this.player = player
-                }
-            },
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer(
-                        scaleX = scale,
-                        scaleY = scale,
-                        translationX = offset.x,
-                        translationY = offset.y,
-                        rotationZ = rotationDegrees.toFloat(),
-                    ),
+        VideoPlayerSurface(
+            player = player,
+            scale = zoom.scale,
+            offset = zoom.offset,
+            rotationDegrees = rotationDegrees,
         )
 
         if (isCurrent) {
-            AnimatedVisibility(
-                visible = state.isControlsVisible && !isZoomed,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                BottomControls(
-                    state = state,
-                    onTogglePlay = {
-                        if (player.isPlaying) player.pause() else player.play()
-                    },
-                    onSeekTo = { positionMs ->
-                        player.seekTo(positionMs)
-                        viewModel.updatePosition(positionMs)
-                    },
-                    onStepFrame = { forward ->
-                        val step = if (forward) FRAME_STEP_MS else -FRAME_STEP_MS
-                        val newPos = (player.currentPosition + step).coerceIn(0L, player.duration.coerceAtLeast(0L))
-                        player.pause()
-                        player.seekTo(newPos)
-                        viewModel.updatePosition(newPos)
-                    },
-                    onShowSpeedSheet = { showSpeedSheet = true },
-                    onSetAbPoint = viewModel::setAbPoint,
-                    onResetAbRepeat = viewModel::resetAbRepeat,
-                )
-            }
+            VideoControlsOverlay(
+                player = player,
+                state = state,
+                isZoomed = zoom.isZoomed,
+                viewModel = viewModel,
+                onShowSpeedSheet = { showSpeedSheet = true },
+            )
         }
     }
 
-    if (showSpeedSheet) {
-        SpeedSelectionSheet(
-            currentSpeed = state.playbackSpeed,
-            onSpeedSelect = { speed ->
-                player.playbackParameters = PlaybackParameters(speed)
-                viewModel.setPlaybackSpeed(speed)
-                showSpeedSheet = false
-            },
-            onDismiss = { showSpeedSheet = false },
-        )
-    }
+    VideoSpeedSheet(
+        visible = showSpeedSheet,
+        player = player,
+        state = state,
+        viewModel = viewModel,
+        onDismiss = { showSpeedSheet = false },
+    )
 }
+
+/** Wires the shared tap/zoom/seek gesture protocol to this page's zoom state and seeking. */
+private fun Modifier.videoViewerGestures(
+    key: Any?,
+    zoom: ZoomableState,
+    containerSize: () -> IntSize,
+    onSingleTap: () -> Unit,
+    onSeek: (Long) -> Unit,
+): Modifier =
+    tapZoomSeekGestures(
+        key = key,
+        onSingleTap = onSingleTap,
+        onSecondTap = { anchor ->
+            handleSecondTap(
+                anchor = anchor,
+                containerWidth = containerSize().width,
+                onSeekBack = { onSeek(-SEEK_STEP_MS) },
+                onSeekForward = { onSeek(SEEK_STEP_MS) },
+                onToggleZoom = {
+                    val target = if (zoom.isZoomed) 1f else DOUBLE_TAP_ZOOM
+                    zoom.zoomTo(target, anchor, containerSize())
+                },
+            )
+        },
+        onQuickZoom = { anchor, scaleMultiplier ->
+            zoom.zoomTo(zoom.scale * scaleMultiplier, anchor, containerSize())
+        },
+    )
 
 /** Resolves a confirmed second tap into a seek (screen edges) or a zoom toggle (center). */
 private fun handleSecondTap(
@@ -260,6 +215,16 @@ private fun handleSecondTap(
         containerWidth > 0 && anchor.x > containerWidth * SEEK_TAP_RIGHT_FRACTION -> onSeekForward()
         else -> onToggleZoom()
     }
+}
+
+/** Mirrors the page's zoom state to the host via [onZoomChange]. */
+@Composable
+private fun ReportZoomChange(
+    isZoomed: Boolean,
+    onZoomChange: (Boolean) -> Unit,
+) {
+    val current by rememberUpdatedState(onZoomChange)
+    LaunchedEffect(isZoomed) { current(isZoomed) }
 }
 
 /** Drives the ExoPlayer lifecycle: media loading, saved position/speed, pause, and player events. */
@@ -353,6 +318,73 @@ private fun ControlsAutoHideEffect(
     }
 }
 
+/** The ExoPlayer-backed video surface with pan/zoom/rotation applied via a graphics layer. */
+@Composable
+private fun VideoPlayerSurface(
+    player: ExoPlayer,
+    scale: Float,
+    offset: Offset,
+    rotationDegrees: Int,
+    modifier: Modifier = Modifier,
+) {
+    AndroidView(
+        factory = { ctx ->
+            (LayoutInflater.from(ctx).inflate(R.layout.zoomable_player_view, null) as PlayerView).apply {
+                this.player = player
+            }
+        },
+        modifier =
+            modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offset.x,
+                    translationY = offset.y,
+                    rotationZ = rotationDegrees.toFloat(),
+                ),
+    )
+}
+
+/** The fade-in playback controls overlay shown over the current video when not zoomed. */
+@Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
+@Composable
+private fun VideoControlsOverlay(
+    player: ExoPlayer,
+    state: MediaViewerUiState.Ready,
+    isZoomed: Boolean,
+    viewModel: MediaViewerViewModel,
+    onShowSpeedSheet: () -> Unit,
+) {
+    AnimatedVisibility(
+        visible = state.isControlsVisible && !isZoomed,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        BottomControls(
+            state = state,
+            onTogglePlay = {
+                if (player.isPlaying) player.pause() else player.play()
+            },
+            onSeekTo = { positionMs ->
+                player.seekTo(positionMs)
+                viewModel.updatePosition(positionMs)
+            },
+            onStepFrame = { forward ->
+                val step = if (forward) FRAME_STEP_MS else -FRAME_STEP_MS
+                val newPos = (player.currentPosition + step).coerceIn(0L, player.duration.coerceAtLeast(0L))
+                player.pause()
+                player.seekTo(newPos)
+                viewModel.updatePosition(newPos)
+            },
+            onShowSpeedSheet = onShowSpeedSheet,
+            onSetAbPoint = viewModel::setAbPoint,
+            onResetAbRepeat = viewModel::resetAbRepeat,
+        )
+    }
+}
+
 @Composable
 private fun BottomControls(
     state: MediaViewerUiState.Ready,
@@ -397,36 +429,11 @@ private fun BottomControls(
                     )
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    IconButton(onClick = { onStepFrame(false) }) {
-                        Icon(
-                            imageVector = Icons.Filled.SkipPrevious,
-                            contentDescription = "Step backward",
-                            tint = Color.White,
-                        )
-                    }
-                    IconButton(
-                        onClick = onTogglePlay,
-                        modifier = Modifier.size(56.dp),
-                    ) {
-                        Icon(
-                            imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (state.isPlaying) "Pause" else "Play",
-                            tint = Color.White,
-                            modifier = Modifier.size(36.dp),
-                        )
-                    }
-                    IconButton(onClick = { onStepFrame(true) }) {
-                        Icon(
-                            imageVector = Icons.Filled.SkipNext,
-                            contentDescription = "Step forward",
-                            tint = Color.White,
-                        )
-                    }
-                }
+                TransportButtons(
+                    isPlaying = state.isPlaying,
+                    onTogglePlay = onTogglePlay,
+                    onStepFrame = onStepFrame,
+                )
 
                 AbRepeatControls(
                     positionMs = state.positionMs,
@@ -436,6 +443,45 @@ private fun BottomControls(
                     onResetAbRepeat = onResetAbRepeat,
                 )
             }
+        }
+    }
+}
+
+/** Step-backward / play-pause / step-forward transport buttons. */
+@Composable
+private fun TransportButtons(
+    isPlaying: Boolean,
+    onTogglePlay: () -> Unit,
+    onStepFrame: (forward: Boolean) -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        IconButton(onClick = { onStepFrame(false) }) {
+            Icon(
+                imageVector = Icons.Filled.SkipPrevious,
+                contentDescription = "Step backward",
+                tint = Color.White,
+            )
+        }
+        IconButton(
+            onClick = onTogglePlay,
+            modifier = Modifier.size(56.dp),
+        ) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = if (isPlaying) "Pause" else "Play",
+                tint = Color.White,
+                modifier = Modifier.size(36.dp),
+            )
+        }
+        IconButton(onClick = { onStepFrame(true) }) {
+            Icon(
+                imageVector = Icons.Filled.SkipNext,
+                contentDescription = "Step forward",
+                tint = Color.White,
+            )
         }
     }
 }
@@ -545,6 +591,28 @@ private fun AbRepeatControls(
             }
         }
     }
+}
+
+/** Bottom sheet for choosing playback speed; renders nothing when [visible] is false. */
+@Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
+@Composable
+private fun VideoSpeedSheet(
+    visible: Boolean,
+    player: ExoPlayer,
+    state: MediaViewerUiState.Ready,
+    viewModel: MediaViewerViewModel,
+    onDismiss: () -> Unit,
+) {
+    if (!visible) return
+    SpeedSelectionSheet(
+        currentSpeed = state.playbackSpeed,
+        onSpeedSelect = { speed ->
+            player.playbackParameters = PlaybackParameters(speed)
+            viewModel.setPlaybackSpeed(speed)
+            onDismiss()
+        },
+        onDismiss = onDismiss,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
