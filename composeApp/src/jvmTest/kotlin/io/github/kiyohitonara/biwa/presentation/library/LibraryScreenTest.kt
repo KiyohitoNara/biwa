@@ -33,7 +33,6 @@ class LibraryScreenTest {
             setContent {
                 LibraryScreen(
                     onOpenMediaViewer = {},
-                    onManageAlbums = {},
                     onOpenSettings = {},
                     viewModel = buildTestViewModel(),
                 )
@@ -50,7 +49,6 @@ class LibraryScreenTest {
             setContent {
                 LibraryScreen(
                     onOpenMediaViewer = {},
-                    onManageAlbums = {},
                     onOpenSettings = { settingsOpened = true },
                     viewModel = buildTestViewModel(),
                 )
@@ -67,7 +65,6 @@ class LibraryScreenTest {
             setContent {
                 LibraryScreen(
                     onOpenMediaViewer = {},
-                    onManageAlbums = {},
                     onOpenSettings = {},
                     viewModel = buildTestViewModel(),
                 )

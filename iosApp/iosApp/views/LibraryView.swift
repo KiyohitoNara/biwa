@@ -83,7 +83,6 @@ private final class LibraryViewModelBridge: ObservableObject {
 
 struct LibraryView: View {
     let onOpenMediaViewer: (String) -> Void
-    let onManageAlbums: () -> Void
     let onOpenSettings: () -> Void
 
     @StateObject private var bridge: LibraryViewModelBridge
@@ -93,11 +92,9 @@ struct LibraryView: View {
 
     init(
         onOpenMediaViewer: @escaping (String) -> Void,
-        onManageAlbums: @escaping () -> Void,
         onOpenSettings: @escaping () -> Void
     ) {
         self.onOpenMediaViewer = onOpenMediaViewer
-        self.onManageAlbums = onManageAlbums
         self.onOpenSettings = onOpenSettings
         _bridge = StateObject(wrappedValue: LibraryViewModelBridge(onOpenMediaViewer: onOpenMediaViewer))
     }
@@ -135,11 +132,6 @@ struct LibraryView: View {
         }
         .navigationTitle("Library")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(action: onManageAlbums) {
-                    Image(systemName: "rectangle.stack")
-                }
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showSortSheet = true } label: {
                     Image(systemName: "arrow.up.arrow.down")

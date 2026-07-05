@@ -41,7 +41,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
@@ -52,11 +54,10 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 /** Screen for creating, renaming, moving, and deleting albums, with drill-down through nested albums. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
 @Composable
 fun AlbumManagementScreen(
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AlbumManagementViewModel = koinViewModel { parametersOf(null) },
 ) {
@@ -72,12 +73,15 @@ fun AlbumManagementScreen(
     }
 
     val ready = uiState as? AlbumManagementUiState.Ready
+    val canNavigateUp = ready?.breadcrumb?.isNotEmpty() == true
+    BackHandler(enabled = canNavigateUp) { viewModel.navigateUp() }
     Scaffold(
         modifier = modifier,
         topBar = {
             AlbumTopBar(
                 title = ready?.breadcrumb?.lastOrNull()?.name ?: "Albums",
-                onBack = { if (viewModel.navigateUp()) Unit else onBack() },
+                canNavigateUp = canNavigateUp,
+                onNavigateUp = { viewModel.navigateUp() },
             )
         },
         floatingActionButton = {
@@ -113,21 +117,27 @@ fun AlbumManagementScreen(
     )
 }
 
-/** Album screen top app bar with a back navigation icon and the current album name as title. */
+/**
+ * Album screen top app bar. Shows the current album name as title and, when drilled into
+ * a sub-album ([canNavigateUp]), an up-navigation icon.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AlbumTopBar(
     title: String,
-    onBack: () -> Unit,
+    canNavigateUp: Boolean,
+    onNavigateUp: () -> Unit,
 ) {
     TopAppBar(
         title = { Text(title) },
         navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                )
+            if (canNavigateUp) {
+                IconButton(onClick = onNavigateUp) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Up",
+                    )
+                }
             }
         },
     )

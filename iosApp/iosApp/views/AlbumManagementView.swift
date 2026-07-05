@@ -56,8 +56,6 @@ private final class AlbumManagementViewModelBridge: ObservableObject {
 }
 
 struct AlbumManagementView: View {
-    let onBack: () -> Void
-
     @StateObject private var bridge = AlbumManagementViewModelBridge()
     @State private var showCreateDialog = false
     @State private var renameTarget: MediaAlbum?
@@ -73,13 +71,14 @@ struct AlbumManagementView: View {
             }
         }
         .navigationTitle(bridge.breadcrumb.last?.name ?? "Albums")
-        .navigationBarBackButtonHidden()
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    if !bridge.navigateUp() { onBack() }
-                } label: {
-                    Image(systemName: "chevron.left")
+            if !bridge.breadcrumb.isEmpty {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        _ = bridge.navigateUp()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {

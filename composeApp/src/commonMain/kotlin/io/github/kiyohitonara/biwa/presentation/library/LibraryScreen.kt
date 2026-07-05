@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -96,7 +95,6 @@ private const val DRAG_DIMMED_ALPHA = 0.55f
 @Composable
 fun LibraryScreen(
     onOpenMediaViewer: (String) -> Unit,
-    onManageAlbums: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = koinViewModel(),
@@ -119,7 +117,6 @@ fun LibraryScreen(
         topBar = {
             LibraryTopBar(
                 sortEnabled = (uiState as? LibraryUiState.Success)?.let { it.activeAlbumIds.size <= 1 } ?: true,
-                onManageAlbums = onManageAlbums,
                 onSort = { showSortSheet = true },
                 onOpenSettings = onOpenSettings,
             )
@@ -216,12 +213,11 @@ private fun LibraryEffects(
     }
 }
 
-/** Library top app bar with manage-albums, sort, and overflow (settings) actions. */
+/** Library top app bar with sort and overflow (settings) actions. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LibraryTopBar(
     sortEnabled: Boolean,
-    onManageAlbums: () -> Unit,
     onSort: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -229,12 +225,6 @@ private fun LibraryTopBar(
     TopAppBar(
         title = { Text("Library") },
         actions = {
-            IconButton(onClick = onManageAlbums) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Label,
-                    contentDescription = "Manage albums",
-                )
-            }
             IconButton(onClick = onSort, enabled = sortEnabled) {
                 Icon(
                     imageVector = Icons.Filled.SwapVert,
