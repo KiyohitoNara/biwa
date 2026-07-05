@@ -1,24 +1,24 @@
 import SwiftUI
 import Shared
 
-extension MediaTag: @retroactive Identifiable {}
+extension MediaAlbum: @retroactive Identifiable {}
 
 @MainActor
-private final class TagManagementViewModelBridge: ObservableObject {
-    private let vm: Shared.TagManagementViewModel
-    @Published private(set) var tags: [MediaTag] = []
+private final class AlbumManagementViewModelBridge: ObservableObject {
+    private let vm: Shared.AlbumManagementViewModel
+    @Published private(set) var albums: [MediaAlbum] = []
     @Published var errorMessage: String?
     private var stateTask: Task<Void, Never>?
     private var errorTask: Task<Void, Never>?
 
     init() {
-        let kvm = ViewModelFactory.shared.makeTagManagementViewModel(mediaId: nil)
+        let kvm = ViewModelFactory.shared.makeAlbumManagementViewModel(mediaId: nil)
         vm = kvm
         stateTask = Task { [weak self] in
             for await state in kvm.uiState {
                 await MainActor.run {
                     if case .ready(let ready) = onEnum(of: state) {
-                        self?.tags = ready.allTags
+                        self?.albums = ready.allAlbums
                     }
                 }
             }
@@ -35,36 +35,36 @@ private final class TagManagementViewModelBridge: ObservableObject {
         errorTask?.cancel()
     }
 
-    func createTag(name: String) { vm.createTag(name: name) }
-    func renameTag(id: String, name: String) { vm.renameTag(id: id, name: name) }
-    func deleteTag(id: String) { vm.deleteTag(id: id) }
+    func createAlbum(name: String) { vm.createAlbum(name: name) }
+    func renameAlbum(id: String, name: String) { vm.renameAlbum(id: id, name: name) }
+    func deleteAlbum(id: String) { vm.deleteAlbum(id: id) }
 }
 
-struct TagManagementView: View {
+struct AlbumManagementView: View {
     let onBack: () -> Void
 
-    @StateObject private var bridge = TagManagementViewModelBridge()
+    @StateObject private var bridge = AlbumManagementViewModelBridge()
     @State private var showCreateDialog = false
-    @State private var renameTarget: MediaTag? = nil
-    @State private var deleteTarget: MediaTag? = nil
+    @State private var renameTarget: MediaAlbum? = nil
+    @State private var deleteTarget: MediaAlbum? = nil
 
     var body: some View {
         Group {
-            if bridge.tags.isEmpty {
+            if bridge.albums.isEmpty {
                 emptyState
             } else {
-                List(bridge.tags, id: \.id) { tag in
+                List(bridge.albums, id: \.id) { album in
                     HStack {
-                        Text(tag.name)
+                        Text(album.name)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Button {
-                            renameTarget = tag
+                            renameTarget = album
                         } label: {
                             Image(systemName: "pencil")
                         }
                         .buttonStyle(.borderless)
                         Button(role: .destructive) {
-                            deleteTarget = tag
+                            deleteTarget = album
                         } label: {
                             Image(systemName: "trash")
                         }
@@ -73,7 +73,7 @@ struct TagManagementView: View {
                 }
             }
         }
-        .navigationTitle("Tags")
+        .navigationTitle("Albums")
         .navigationBarBackButtonHidden()
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -90,13 +90,13 @@ struct TagManagementView: View {
             }
         }
         .sheet(isPresented: $showCreateDialog) {
-            TagNameSheet(title: "New Tag", initialName: "") { name in
-                bridge.createTag(name: name)
+            AlbumNameSheet(title: "New Album", initialName: "") { name in
+                bridge.createAlbum(name: name)
             }
         }
-        .sheet(item: $renameTarget) { tag in
-            TagNameSheet(title: "Rename Tag", initialName: tag.name) { name in
-                bridge.renameTag(id: tag.id, name: name)
+        .sheet(item: $renameTarget) { album in
+            AlbumNameSheet(title: "Rename Album", initialName: album.name) { name in
+                bridge.renameAlbum(id: album.id, name: name)
             }
         }
         .confirmationDialog(
@@ -105,12 +105,12 @@ struct TagManagementView: View {
             titleVisibility: .visible
         ) {
             Button("Delete", role: .destructive) {
-                if let tag = deleteTarget { bridge.deleteTag(id: tag.id) }
+                if let album = deleteTarget { bridge.deleteAlbum(id: album.id) }
                 deleteTarget = nil
             }
             Button("Cancel", role: .cancel) { deleteTarget = nil }
         } message: {
-            Text("Media items with this tag will not be deleted.")
+            Text("Media items in this album will not be deleted.")
         }
         .alert("Error", isPresented: Binding(
             get: { bridge.errorMessage != nil },
@@ -124,9 +124,9 @@ struct TagManagementView: View {
 
     private var emptyState: some View {
         VStack(spacing: 8) {
-            Text("No tags yet")
+            Text("No albums yet")
                 .font(.headline)
-            Text("Tap + to create your first tag")
+            Text("Tap + to create your first album")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -134,7 +134,7 @@ struct TagManagementView: View {
     }
 }
 
-private struct TagNameSheet: View {
+private struct AlbumNameSheet: View {
     let title: String
     let initialName: String
     let onConfirm: (String) -> Void

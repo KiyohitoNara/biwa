@@ -1,4 +1,4 @@
-package io.github.kiyohitonara.biwa.presentation.tagmanagement
+package io.github.kiyohitonara.biwa.presentation.albummanagement
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,24 +43,24 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.kiyohitonara.biwa.domain.model.Tag
+import io.github.kiyohitonara.biwa.domain.model.Album
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
-/** Screen for creating, renaming, and deleting tags globally. */
+/** Screen for creating, renaming, and deleting albums globally. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
 @Composable
-fun TagManagementScreen(
+fun AlbumManagementScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: TagManagementViewModel = koinViewModel { parametersOf(null) },
+    viewModel: AlbumManagementViewModel = koinViewModel { parametersOf(null) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateDialog by remember { mutableStateOf(false) }
-    var renameTarget by remember { mutableStateOf<Tag?>(null) }
-    var deleteTarget by remember { mutableStateOf<Tag?>(null) }
+    var renameTarget by remember { mutableStateOf<Album?>(null) }
+    var deleteTarget by remember { mutableStateOf<Album?>(null) }
 
     LaunchedEffect(viewModel.error) {
         viewModel.error.collect { message ->
@@ -70,15 +70,15 @@ fun TagManagementScreen(
 
     Scaffold(
         modifier = modifier,
-        topBar = { TagTopBar(onBack = onBack) },
+        topBar = { AlbumTopBar(onBack = onBack) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Add tag")
+                Icon(Icons.Filled.Add, contentDescription = "Add album")
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        TagList(
+        AlbumList(
             uiState = uiState,
             onRename = { renameTarget = it },
             onDelete = { deleteTarget = it },
@@ -90,18 +90,18 @@ fun TagManagementScreen(
     }
 
     if (showCreateDialog) {
-        TagNameDialog(
-            title = "New tag",
+        AlbumNameDialog(
+            title = "New album",
             initialName = "",
             onConfirm = { name ->
-                viewModel.createTag(name)
+                viewModel.createAlbum(name)
                 showCreateDialog = false
             },
             onDismiss = { showCreateDialog = false },
         )
     }
 
-    TagEditDialogs(
+    AlbumEditDialogs(
         renameTarget = renameTarget,
         deleteTarget = deleteTarget,
         viewModel = viewModel,
@@ -110,12 +110,12 @@ fun TagManagementScreen(
     )
 }
 
-/** Tag screen top app bar with a back navigation icon. */
+/** Album screen top app bar with a back navigation icon. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TagTopBar(onBack: () -> Unit) {
+private fun AlbumTopBar(onBack: () -> Unit) {
     TopAppBar(
-        title = { Text("Tags") },
+        title = { Text("Albums") },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(
@@ -127,26 +127,26 @@ private fun TagTopBar(onBack: () -> Unit) {
     )
 }
 
-/** Renders the empty state or the scrollable list of tags. */
+/** Renders the empty state or the scrollable list of albums. */
 @Composable
-private fun TagList(
-    uiState: TagManagementUiState,
-    onRename: (Tag) -> Unit,
-    onDelete: (Tag) -> Unit,
+private fun AlbumList(
+    uiState: AlbumManagementUiState,
+    onRename: (Album) -> Unit,
+    onDelete: (Album) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val ready = uiState as? TagManagementUiState.Ready ?: return
-    if (ready.allTags.isEmpty()) {
+    val ready = uiState as? AlbumManagementUiState.Ready ?: return
+    if (ready.allAlbums.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            EmptyTags()
+            EmptyAlbums()
         }
     } else {
         LazyColumn(modifier = modifier) {
-            items(ready.allTags, key = { it.id }) { tag ->
-                TagRow(
-                    tag = tag,
-                    onRename = { onRename(tag) },
-                    onDelete = { onDelete(tag) },
+            items(ready.allAlbums, key = { it.id }) { album ->
+                AlbumRow(
+                    album = album,
+                    onRename = { onRename(album) },
+                    onDelete = { onDelete(album) },
                 )
                 HorizontalDivider()
             }
@@ -154,33 +154,33 @@ private fun TagList(
     }
 }
 
-/** The rename and delete confirmation dialogs, shown when their target tag is set. */
+/** The rename and delete confirmation dialogs, shown when their target album is set. */
 @Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
 @Composable
-private fun TagEditDialogs(
-    renameTarget: Tag?,
-    deleteTarget: Tag?,
-    viewModel: TagManagementViewModel,
+private fun AlbumEditDialogs(
+    renameTarget: Album?,
+    deleteTarget: Album?,
+    viewModel: AlbumManagementViewModel,
     onDismissRename: () -> Unit,
     onDismissDelete: () -> Unit,
 ) {
-    renameTarget?.let { tag ->
-        TagNameDialog(
-            title = "Rename tag",
-            initialName = tag.name,
+    renameTarget?.let { album ->
+        AlbumNameDialog(
+            title = "Rename album",
+            initialName = album.name,
             onConfirm = { name ->
-                viewModel.renameTag(tag.id, name)
+                viewModel.renameAlbum(album.id, name)
                 onDismissRename()
             },
             onDismiss = onDismissRename,
         )
     }
 
-    deleteTarget?.let { tag ->
-        DeleteTagDialog(
-            tagName = tag.name,
+    deleteTarget?.let { album ->
+        DeleteAlbumDialog(
+            albumName = album.name,
             onConfirm = {
-                viewModel.deleteTag(tag.id)
+                viewModel.deleteAlbum(album.id)
                 onDismissDelete()
             },
             onDismiss = onDismissDelete,
@@ -189,8 +189,8 @@ private fun TagEditDialogs(
 }
 
 @Composable
-private fun TagRow(
-    tag: Tag,
+private fun AlbumRow(
+    album: Album,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -203,7 +203,7 @@ private fun TagRow(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = tag.name,
+            text = album.name,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f),
         )
@@ -226,18 +226,18 @@ private fun TagRow(
 }
 
 @Composable
-private fun EmptyTags() {
+private fun EmptyAlbums() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.padding(16.dp),
     ) {
         Text(
-            text = "No tags yet",
+            text = "No albums yet",
             style = MaterialTheme.typography.titleMedium,
         )
         Text(
-            text = "Tap + to create your first tag",
+            text = "Tap + to create your first album",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -245,7 +245,7 @@ private fun EmptyTags() {
 }
 
 @Composable
-private fun TagNameDialog(
+private fun AlbumNameDialog(
     title: String,
     initialName: String,
     onConfirm: (String) -> Unit,
@@ -290,16 +290,16 @@ private fun TagNameDialog(
 }
 
 @Composable
-private fun DeleteTagDialog(
-    tagName: String,
+private fun DeleteAlbumDialog(
+    albumName: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete tag") },
+        title = { Text("Delete album") },
         text = {
-            Text("Delete \"$tagName\"? Media items with this tag will not be deleted.")
+            Text("Delete \"$albumName\"? Media items in this album will not be deleted.")
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {

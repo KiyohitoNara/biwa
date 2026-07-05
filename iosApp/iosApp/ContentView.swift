@@ -2,7 +2,7 @@ import SwiftUI
 
 private enum AppRoute: Hashable {
     case mediaViewer(String)
-    case tagManagement
+    case albumManagement
     case settings
     case about
 }
@@ -14,15 +14,15 @@ struct ContentView: View {
         NavigationStack(path: $path) {
             LibraryView(
                 onOpenMediaViewer: { id in path.append(AppRoute.mediaViewer(id)) },
-                onManageTags: { path.append(AppRoute.tagManagement) },
+                onManageAlbums: { path.append(AppRoute.albumManagement) },
                 onOpenSettings: { path.append(AppRoute.settings) }
             )
             .navigationDestination(for: AppRoute.self) { route in
                 switch route {
                 case .mediaViewer(let id):
                     MediaViewerView(mediaId: id, onBack: { path.removeLast() })
-                case .tagManagement:
-                    TagManagementView(onBack: { path.removeLast() })
+                case .albumManagement:
+                    AlbumManagementView(onBack: { path.removeLast() })
                 case .settings:
                     SettingsView(
                         onBack: { path.removeLast() },

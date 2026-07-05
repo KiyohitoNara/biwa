@@ -13,13 +13,13 @@ import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetAllAlbumsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForTagUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsInAllAlbumsUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForAlbumUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.ReorderAlbumMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.ReorderTagMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.test.Test
@@ -33,7 +33,7 @@ class LibraryScreenTest {
             setContent {
                 LibraryScreen(
                     onOpenMediaViewer = {},
-                    onManageTags = {},
+                    onManageAlbums = {},
                     onOpenSettings = {},
                     viewModel = buildTestViewModel(),
                 )
@@ -50,7 +50,7 @@ class LibraryScreenTest {
             setContent {
                 LibraryScreen(
                     onOpenMediaViewer = {},
-                    onManageTags = {},
+                    onManageAlbums = {},
                     onOpenSettings = { settingsOpened = true },
                     viewModel = buildTestViewModel(),
                 )
@@ -67,7 +67,7 @@ class LibraryScreenTest {
             setContent {
                 LibraryScreen(
                     onOpenMediaViewer = {},
-                    onManageTags = {},
+                    onManageAlbums = {},
                     onOpenSettings = {},
                     viewModel = buildTestViewModel(),
                 )
@@ -82,7 +82,7 @@ class LibraryScreenTest {
         val fakeItems = MutableStateFlow<List<MediaItem>>(emptyList())
         val fakeMediaRepository = FakeMediaRepository(fakeItems)
         val fakeThumbnailRepository = FakeThumbnailRepository()
-        val fakeTagRepository = FakeTagRepository()
+        val fakeAlbumRepository = FakeAlbumRepository()
         val fakeFileStorage = FakeFileStorage()
         val fakeMetadataExtractor = FakeMediaMetadataExtractor()
         return LibraryViewModel(
@@ -92,10 +92,10 @@ class LibraryScreenTest {
             updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeMediaRepository, clock = { 0L }),
             generateThumbnailUseCase = GenerateThumbnailUseCase(fakeThumbnailRepository, fakeMediaRepository),
             reorderMediaUseCase = ReorderMediaUseCase(fakeMediaRepository),
-            getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
-            getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
-            getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
-            reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
+            getAllAlbumsUseCase = GetAllAlbumsUseCase(fakeAlbumRepository),
+            getMediaIdsInAllAlbumsUseCase = GetMediaIdsInAllAlbumsUseCase(fakeAlbumRepository),
+            getOrderedMediaIdsForAlbumUseCase = GetOrderedMediaIdsForAlbumUseCase(fakeAlbumRepository),
+            reorderAlbumMediaUseCase = ReorderAlbumMediaUseCase(fakeAlbumRepository),
             addMediaUseCase = AddMediaUseCase(fakeMediaRepository, fakeFileStorage, clock = { 0L }),
             metadataExtractor = fakeMetadataExtractor,
             libraryDisplayState = LibraryDisplayState(),

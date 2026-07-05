@@ -6,24 +6,24 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-class CreateTagUseCaseTest {
-    private val repository = FakeTagRepository()
-    private var nextId = "tag-1"
+class CreateAlbumUseCaseTest {
+    private val repository = FakeAlbumRepository()
+    private var nextId = "album-1"
     private val useCase =
-        CreateTagUseCase(
+        CreateAlbumUseCase(
             repository = repository,
             idGenerator = { nextId },
             clock = { 1_000L },
         )
 
     @Test
-    fun `execute creates tag with given name`() =
+    fun `execute creates album with given name`() =
         runTest {
             useCase.execute("Nature")
 
-            val tags = repository.getAllTags().first()
-            assertEquals(1, tags.size)
-            assertEquals("Nature", tags.first().name)
+            val albums = repository.getAllAlbums().first()
+            assertEquals(1, albums.size)
+            assertEquals("Nature", albums.first().name)
         }
 
     @Test
@@ -31,25 +31,25 @@ class CreateTagUseCaseTest {
         runTest {
             useCase.execute("  Nature  ")
 
-            val tags = repository.getAllTags().first()
-            assertEquals("Nature", tags.first().name)
+            val albums = repository.getAllAlbums().first()
+            assertEquals("Nature", albums.first().name)
         }
 
     @Test
     fun `execute assigns id from generator`() =
         runTest {
             nextId = "custom-id"
-            val tag = useCase.execute("Nature")
+            val album = useCase.execute("Nature")
 
-            assertEquals("custom-id", tag.id)
+            assertEquals("custom-id", album.id)
         }
 
     @Test
     fun `execute assigns createdAt from clock`() =
         runTest {
-            val tag = useCase.execute("Nature")
+            val album = useCase.execute("Nature")
 
-            assertEquals(1_000L, tag.createdAt)
+            assertEquals(1_000L, album.createdAt)
         }
 
     @Test

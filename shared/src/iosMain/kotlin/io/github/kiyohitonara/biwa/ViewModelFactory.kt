@@ -1,9 +1,9 @@
 package io.github.kiyohitonara.biwa
 
+import io.github.kiyohitonara.biwa.presentation.albummanagement.AlbumManagementViewModel
 import io.github.kiyohitonara.biwa.presentation.library.LibraryViewModel
 import io.github.kiyohitonara.biwa.presentation.mediaviewer.MediaViewerViewModel
 import io.github.kiyohitonara.biwa.presentation.settings.SettingsViewModel
-import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementViewModel
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.parameter.parametersOf
@@ -24,9 +24,9 @@ object ViewModelFactory : KoinComponent {
     fun makeMediaViewerViewModel(mediaId: String): MediaViewerViewModel = get { parametersOf(mediaId) }
 
     /**
-     * Returns a new [TagManagementViewModel] instance from the Koin container.
+     * Returns a new [AlbumManagementViewModel] instance from the Koin container.
      *
-     * Pass [mediaId] to enable per-media tag toggling; pass null for global tag management.
+     * Pass [mediaId] to enable per-media album toggling; pass null for global album management.
      */
-    fun makeTagManagementViewModel(mediaId: String?): TagManagementViewModel = get { parametersOf(mediaId) }
+    fun makeAlbumManagementViewModel(mediaId: String?): AlbumManagementViewModel = get { parametersOf(mediaId) }
 }

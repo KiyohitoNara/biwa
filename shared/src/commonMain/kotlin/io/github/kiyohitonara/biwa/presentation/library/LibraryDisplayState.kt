@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * Written by [LibraryViewModel] whenever its filtered + sorted list changes, and read by
  * [io.github.kiyohitonara.biwa.presentation.mediaviewer.MediaViewerViewModel] when the
  * viewer opens, so the viewer's swipe order matches what the user saw in the library
- * (active [io.github.kiyohitonara.biwa.domain.model.SortOrder] and tag filters).
+ * (active [io.github.kiyohitonara.biwa.domain.model.SortOrder] and album filters).
  *
  * An empty list means no library state has been recorded yet (e.g. cold start via deep
  * link); consumers should fall back to all available media in that case.

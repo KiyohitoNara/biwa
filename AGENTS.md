@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Biwa** is a Kotlin Multiplatform (KMP) media library app for Android and iOS.
-It manages photos, videos, and GIFs with tagging, playback tracking, and A/B point marking for video replay analysis.
+It manages photos, videos, and GIFs with album organization, playback tracking, and A/B point marking for video replay analysis.
 The UI is built with Jetpack Compose Multiplatform.
 
 ## Technology Stack

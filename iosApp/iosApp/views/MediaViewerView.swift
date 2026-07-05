@@ -60,7 +60,7 @@ struct MediaViewerView: View {
     let onBack: () -> Void
 
     @StateObject private var bridge: MediaViewerViewModelBridge
-    @State private var tagSheetItem: MediaItem?
+    @State private var albumSheetItem: MediaItem?
     @State private var rotationDegrees: Int = 0
 
     init(mediaId: String, onBack: @escaping () -> Void) {
@@ -83,9 +83,9 @@ struct MediaViewerView: View {
                     onBack: onBack,
                     onRotate: { rotationDegrees = (rotationDegrees + 90) % 360 },
                     rotateEnabled: currentItem != nil,
-                    onEditTags: {
+                    onEditAlbums: {
                         if let item = currentItem {
-                            tagSheetItem = item
+                            albumSheetItem = item
                         }
                     },
                     onDelete: { bridge.deleteCurrentMedia() }
@@ -96,8 +96,8 @@ struct MediaViewerView: View {
         .toolbarVisibility(.hidden, for: .navigationBar)
         .onDisappear { bridge.saveCurrentState() }
         .onChange(of: bridge.currentIndex) { _ in rotationDegrees = 0 }
-        .sheet(item: $tagSheetItem) { item in
-            TagAssignmentSheet(mediaId: item.id, onDismiss: { tagSheetItem = nil })
+        .sheet(item: $albumSheetItem) { item in
+            AlbumAssignmentSheet(mediaId: item.id, onDismiss: { albumSheetItem = nil })
         }
     }
 
@@ -508,7 +508,7 @@ private struct ViewerTopBar: View {
     let onBack: () -> Void
     let onRotate: () -> Void
     let rotateEnabled: Bool
-    let onEditTags: () -> Void
+    let onEditAlbums: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -541,8 +541,8 @@ private struct ViewerTopBar: View {
                     }
                 }
 
-                Button(action: onEditTags) {
-                    Image(systemName: "tag")
+                Button(action: onEditAlbums) {
+                    Image(systemName: "rectangle.stack")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.white)
                         .padding(8)
@@ -570,21 +570,21 @@ private struct ViewerTopBar: View {
 }
 
 @MainActor
-private final class TagAssignmentBridge: ObservableObject {
-    private let vm: TagManagementViewModel
-    @Published private(set) var allTags: [MediaTag] = []
-    @Published private(set) var mediaTags: [MediaTag] = []
+private final class AlbumAssignmentBridge: ObservableObject {
+    private let vm: AlbumManagementViewModel
+    @Published private(set) var allAlbums: [MediaAlbum] = []
+    @Published private(set) var mediaAlbums: [MediaAlbum] = []
     private var stateTask: Task<Void, Never>?
 
     init(mediaId: String) {
-        let kvm = ViewModelFactory.shared.makeTagManagementViewModel(mediaId: mediaId)
+        let kvm = ViewModelFactory.shared.makeAlbumManagementViewModel(mediaId: mediaId)
         vm = kvm
         stateTask = Task { [weak self] in
             for await state in kvm.uiState {
                 await MainActor.run {
                     if case .ready(let r) = onEnum(of: state) {
-                        self?.allTags = r.allTags
-                        self?.mediaTags = r.mediaTags
+                        self?.allAlbums = r.allAlbums
+                        self?.mediaAlbums = r.mediaAlbums
                     }
                 }
             }
@@ -593,36 +593,36 @@ private final class TagAssignmentBridge: ObservableObject {
 
     deinit { stateTask?.cancel() }
 
-    func toggleTag(_ id: String) { vm.toggleTagForMedia(tagId: id) }
+    func toggleAlbum(_ id: String) { vm.toggleMediaInAlbum(albumId: id) }
 }
 
-private struct TagAssignmentSheet: View {
+private struct AlbumAssignmentSheet: View {
     let mediaId: String
     let onDismiss: () -> Void
 
-    @StateObject private var bridge: TagAssignmentBridge
+    @StateObject private var bridge: AlbumAssignmentBridge
 
     init(mediaId: String, onDismiss: @escaping () -> Void) {
         self.mediaId = mediaId
         self.onDismiss = onDismiss
-        _bridge = StateObject(wrappedValue: TagAssignmentBridge(mediaId: mediaId))
+        _bridge = StateObject(wrappedValue: AlbumAssignmentBridge(mediaId: mediaId))
     }
 
     var body: some View {
         NavigationStack {
             List {
-                if bridge.allTags.isEmpty {
-                    Text("No tags yet. Create one from the library's Tags screen.")
+                if bridge.allAlbums.isEmpty {
+                    Text("No albums yet. Create one from the library's Albums screen.")
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(bridge.allTags) { tag in
+                    ForEach(bridge.allAlbums) { album in
                         Button {
-                            bridge.toggleTag(tag.id)
+                            bridge.toggleAlbum(album.id)
                         } label: {
                             HStack {
-                                Text(tag.name).foregroundStyle(.primary)
+                                Text(album.name).foregroundStyle(.primary)
                                 Spacer()
-                                if bridge.mediaTags.contains(where: { $0.id == tag.id }) {
+                                if bridge.mediaAlbums.contains(where: { $0.id == album.id }) {
                                     Image(systemName: "checkmark")
                                         .foregroundStyle(Color.accentColor)
                                 }
@@ -631,7 +631,7 @@ private struct TagAssignmentSheet: View {
                     }
                 }
             }
-            .navigationTitle("Tags")
+            .navigationTitle("Albums")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

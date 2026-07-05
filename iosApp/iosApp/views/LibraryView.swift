@@ -6,8 +6,8 @@ import Shared
 private final class LibraryViewModelBridge: ObservableObject {
     let vm: LibraryViewModel
     @Published private(set) var items: [MediaItem] = []
-    @Published private(set) var availableTags: [MediaTag] = []
-    @Published private(set) var activeTagIds: Set<String> = []
+    @Published private(set) var availableAlbums: [MediaAlbum] = []
+    @Published private(set) var activeAlbumIds: Set<String> = []
     @Published private(set) var isAdding: Bool = false
     @Published var errorMessage: String?
 
@@ -29,8 +29,8 @@ private final class LibraryViewModelBridge: ObservableObject {
                 await MainActor.run {
                     if case .success(let s) = onEnum(of: state) {
                         self?.items = s.items
-                        self?.availableTags = s.availableTags
-                        self?.activeTagIds = s.activeTagIds as? Set<String> ?? []
+                        self?.availableAlbums = s.availableAlbums
+                        self?.activeAlbumIds = s.activeAlbumIds as? Set<String> ?? []
                     }
                 }
             }
@@ -74,7 +74,7 @@ private final class LibraryViewModelBridge: ObservableObject {
     }
 
     func setSortOrder(_ order: Shared.SortOrder) { vm.setSortOrder(sortOrder: order) }
-    func toggleTag(_ id: String) { vm.toggleTag(tagId: id) }
+    func toggleAlbum(_ id: String) { vm.toggleAlbum(albumId: id) }
     func reorderMedia(from: Int, to: Int) { vm.reorderMedia(fromIndex: Int32(from), toIndex: Int32(to)) }
     func deleteMedia(_ id: String) { vm.deleteMedia(id: id) }
     func addMedia(_ uris: [String]) { vm.addMedia(uris: uris) }
@@ -83,7 +83,7 @@ private final class LibraryViewModelBridge: ObservableObject {
 
 struct LibraryView: View {
     let onOpenMediaViewer: (String) -> Void
-    let onManageTags: () -> Void
+    let onManageAlbums: () -> Void
     let onOpenSettings: () -> Void
 
     @StateObject private var bridge: LibraryViewModelBridge
@@ -93,11 +93,11 @@ struct LibraryView: View {
 
     init(
         onOpenMediaViewer: @escaping (String) -> Void,
-        onManageTags: @escaping () -> Void,
+        onManageAlbums: @escaping () -> Void,
         onOpenSettings: @escaping () -> Void
     ) {
         self.onOpenMediaViewer = onOpenMediaViewer
-        self.onManageTags = onManageTags
+        self.onManageAlbums = onManageAlbums
         self.onOpenSettings = onOpenSettings
         _bridge = StateObject(wrappedValue: LibraryViewModelBridge(onOpenMediaViewer: onOpenMediaViewer))
     }
@@ -110,11 +110,11 @@ struct LibraryView: View {
                     .frame(maxWidth: .infinity)
             }
 
-            if !bridge.availableTags.isEmpty {
-                TagFilterRow(
-                    tags: bridge.availableTags,
-                    activeTagIds: bridge.activeTagIds,
-                    onToggle: bridge.toggleTag
+            if !bridge.availableAlbums.isEmpty {
+                AlbumFilterRow(
+                    albums: bridge.availableAlbums,
+                    activeAlbumIds: bridge.activeAlbumIds,
+                    onToggle: bridge.toggleAlbum
                 )
             }
 
@@ -124,7 +124,7 @@ struct LibraryView: View {
                 } else {
                     MediaGrid(
                         items: bridge.items,
-                        activeTagCount: bridge.activeTagIds.count,
+                        activeAlbumCount: bridge.activeAlbumIds.count,
                         onTap: { bridge.openMedia($0.id) },
                         onLongPress: { contextItem = $0 },
                         onReorder: bridge.reorderMedia
@@ -136,15 +136,15 @@ struct LibraryView: View {
         .navigationTitle("Library")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button(action: onManageTags) {
-                    Image(systemName: "tag")
+                Button(action: onManageAlbums) {
+                    Image(systemName: "rectangle.stack")
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showSortSheet = true } label: {
                     Image(systemName: "arrow.up.arrow.down")
                 }
-                .disabled(bridge.activeTagIds.count > 1)
+                .disabled(bridge.activeAlbumIds.count > 1)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -209,18 +209,18 @@ struct LibraryView: View {
     }
 }
 
-private struct TagFilterRow: View {
-    let tags: [MediaTag]
-    let activeTagIds: Set<String>
+private struct AlbumFilterRow: View {
+    let albums: [MediaAlbum]
+    let activeAlbumIds: Set<String>
     let onToggle: (String) -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(tags) { tag in
-                    let active = activeTagIds.contains(tag.id)
-                    Button { onToggle(tag.id) } label: {
-                        Text(tag.name)
+                ForEach(albums) { album in
+                    let active = activeAlbumIds.contains(album.id)
+                    Button { onToggle(album.id) } label: {
+                        Text(album.name)
                             .font(.subheadline)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -239,7 +239,7 @@ private struct TagFilterRow: View {
 
 private struct MediaGrid: View {
     let items: [MediaItem]
-    let activeTagCount: Int
+    let activeAlbumCount: Int
     let onTap: (MediaItem) -> Void
     let onLongPress: (MediaItem) -> Void
     let onReorder: (Int, Int) -> Void
@@ -251,7 +251,7 @@ private struct MediaGrid: View {
         GridItem(.adaptive(minimum: 120), spacing: 2),
     ]
 
-    private var isDraggable: Bool { activeTagCount <= 1 }
+    private var isDraggable: Bool { activeAlbumCount <= 1 }
 
     var body: some View {
         ScrollView {
@@ -387,20 +387,20 @@ private struct MediaBadge: View {
 
 @MainActor
 private final class MediaContextBridge: ObservableObject {
-    private let vm: TagManagementViewModel
-    @Published private(set) var allTags: [MediaTag] = []
-    @Published private(set) var mediaTags: [MediaTag] = []
+    private let vm: AlbumManagementViewModel
+    @Published private(set) var allAlbums: [MediaAlbum] = []
+    @Published private(set) var mediaAlbums: [MediaAlbum] = []
     private var stateTask: Task<Void, Never>?
 
     init(mediaId: String) {
-        let kvm = ViewModelFactory.shared.makeTagManagementViewModel(mediaId: mediaId)
+        let kvm = ViewModelFactory.shared.makeAlbumManagementViewModel(mediaId: mediaId)
         vm = kvm
         stateTask = Task { [weak self] in
             for await state in kvm.uiState {
                 await MainActor.run {
                     if case .ready(let r) = onEnum(of: state) {
-                        self?.allTags = r.allTags
-                        self?.mediaTags = r.mediaTags
+                        self?.allAlbums = r.allAlbums
+                        self?.mediaAlbums = r.mediaAlbums
                     }
                 }
             }
@@ -409,18 +409,18 @@ private final class MediaContextBridge: ObservableObject {
 
     deinit { stateTask?.cancel() }
 
-    func toggleTag(_ id: String) { vm.toggleTagForMedia(tagId: id) }
+    func toggleAlbum(_ id: String) { vm.toggleMediaInAlbum(albumId: id) }
 }
 
-private struct TagToggleRow: View {
-    let tag: MediaTag
+private struct AlbumToggleRow: View {
+    let album: MediaAlbum
     let isActive: Bool
     let onToggle: () -> Void
 
     var body: some View {
         Button(action: onToggle) {
             HStack {
-                Text(tag.name)
+                Text(album.name)
                 Spacer()
                 if isActive {
                     Image(systemName: "checkmark")
@@ -437,25 +437,25 @@ private struct MediaContextSheet: View {
     let onDelete: () -> Void
     let onDismiss: () -> Void
 
-    @StateObject private var tagBridge: MediaContextBridge
+    @StateObject private var albumBridge: MediaContextBridge
 
     init(item: MediaItem, onDelete: @escaping () -> Void, onDismiss: @escaping () -> Void) {
         self.item = item
         self.onDelete = onDelete
         self.onDismiss = onDismiss
-        _tagBridge = StateObject(wrappedValue: MediaContextBridge(mediaId: item.id))
+        _albumBridge = StateObject(wrappedValue: MediaContextBridge(mediaId: item.id))
     }
 
     var body: some View {
         NavigationStack {
             List {
-                if !tagBridge.allTags.isEmpty {
-                    Section("Tags") {
-                        ForEach(tagBridge.allTags) { tag in
-                            TagToggleRow(
-                                tag: tag,
-                                isActive: tagBridge.mediaTags.contains { $0.id == tag.id },
-                                onToggle: { tagBridge.toggleTag(tag.id) }
+                if !albumBridge.allAlbums.isEmpty {
+                    Section("Albums") {
+                        ForEach(albumBridge.allAlbums) { album in
+                            AlbumToggleRow(
+                                album: album,
+                                isActive: albumBridge.mediaAlbums.contains { $0.id == album.id },
+                                onToggle: { albumBridge.toggleAlbum(album.id) }
                             )
                         }
                     }

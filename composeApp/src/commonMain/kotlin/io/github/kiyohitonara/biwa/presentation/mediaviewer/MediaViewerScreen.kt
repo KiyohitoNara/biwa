@@ -48,8 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
-import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementUiState
-import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementViewModel
+import io.github.kiyohitonara.biwa.presentation.albummanagement.AlbumManagementUiState
+import io.github.kiyohitonara.biwa.presentation.albummanagement.AlbumManagementViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -118,7 +118,7 @@ private fun MediaViewerContent(
     onBack: () -> Unit,
 ) {
     var isZoomed by remember { mutableStateOf(false) }
-    var showTagSheet by remember { mutableStateOf(false) }
+    var showAlbumSheet by remember { mutableStateOf(false) }
     var rotationDegrees by remember { mutableIntStateOf(0) }
     val pagerState =
         rememberPagerState(
@@ -155,7 +155,7 @@ private fun MediaViewerContent(
         TopToolbar(
             state = state,
             onBack = onBack,
-            onEditTags = { showTagSheet = true },
+            onEditAlbums = { showAlbumSheet = true },
             onRotate = { rotationDegrees = (rotationDegrees + 90) % 360 },
             rotateEnabled = currentMediaType != null,
             onDelete = viewModel::deleteCurrentMedia,
@@ -164,10 +164,10 @@ private fun MediaViewerContent(
     }
 
     val currentItem = state.items.getOrNull(state.currentIndex)
-    if (showTagSheet && currentItem != null) {
-        TagAssignmentSheet(
+    if (showAlbumSheet && currentItem != null) {
+        AlbumAssignmentSheet(
             mediaId = currentItem.id,
-            onDismiss = { showTagSheet = false },
+            onDismiss = { showAlbumSheet = false },
         )
     }
 }
@@ -206,7 +206,7 @@ private fun MediaPage(
 private fun TopToolbar(
     state: MediaViewerUiState.Ready,
     onBack: () -> Unit,
-    onEditTags: () -> Unit,
+    onEditAlbums: () -> Unit,
     onRotate: () -> Unit,
     rotateEnabled: Boolean,
     onDelete: () -> Unit,
@@ -255,10 +255,10 @@ private fun TopToolbar(
                     )
                 }
             }
-            IconButton(onClick = onEditTags) {
+            IconButton(onClick = onEditAlbums) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Label,
-                    contentDescription = "Edit tags",
+                    contentDescription = "Edit albums",
                     tint = Color.White,
                 )
             }
@@ -294,30 +294,30 @@ private fun OverflowMenu(onDelete: () -> Unit) {
 }
 
 /**
- * Bottom sheet that lets the user toggle each available tag on the current
- * media item. Mirrors the per-item tag editor used by the library's context
+ * Bottom sheet that lets the user toggle each available album on the current
+ * media item. Mirrors the per-item album editor used by the library's context
  * sheet so users get the same workflow without leaving the viewer.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun TagAssignmentSheet(
+private fun AlbumAssignmentSheet(
     mediaId: String,
     onDismiss: () -> Unit,
 ) {
-    val tagVm: TagManagementViewModel = koinViewModel(key = mediaId) { parametersOf(mediaId) }
-    val tagState by tagVm.uiState.collectAsStateWithLifecycle()
+    val albumVm: AlbumManagementViewModel = koinViewModel(key = mediaId) { parametersOf(mediaId) }
+    val albumState by albumVm.uiState.collectAsStateWithLifecycle()
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(bottom = 32.dp)) {
             Text(
-                text = "Tags",
+                text = "Albums",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
-            val ready = tagState as? TagManagementUiState.Ready
-            if (ready == null || ready.allTags.isEmpty()) {
+            val ready = albumState as? AlbumManagementUiState.Ready
+            if (ready == null || ready.allAlbums.isEmpty()) {
                 Text(
-                    text = "No tags yet. Create one from the library's Tags screen.",
+                    text = "No albums yet. Create one from the library's Albums screen.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
@@ -330,11 +330,11 @@ private fun TagAssignmentSheet(
                             .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    ready.allTags.forEach { tag ->
+                    ready.allAlbums.forEach { album ->
                         FilterChip(
-                            selected = ready.mediaTags.any { it.id == tag.id },
-                            onClick = { tagVm.toggleTagForMedia(tag.id) },
-                            label = { Text(tag.name) },
+                            selected = ready.mediaAlbums.any { it.id == album.id },
+                            onClick = { albumVm.toggleMediaInAlbum(album.id) },
+                            label = { Text(album.name) },
                         )
                     }
                 }

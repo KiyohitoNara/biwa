@@ -294,7 +294,7 @@ class MediaViewerViewModel(
     /**
      * Filters and reorders [rawItems] to match the library's last recorded display order.
      * Items not present in the snapshot are dropped — this honors the library's active
-     * tag filter. Returns [rawItems] unchanged when no snapshot was recorded.
+     * album filter. Returns [rawItems] unchanged when no snapshot was recorded.
      */
     private fun applyDisplayOrder(rawItems: List<MediaItem>): List<MediaItem> {
         val index = displayOrderIndex ?: return rawItems

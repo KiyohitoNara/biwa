@@ -1,0 +1,31 @@
+CREATE TABLE media_album (
+    media_id TEXT NOT NULL,
+    album_id TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (media_id, album_id),
+    FOREIGN KEY (media_id) REFERENCES media_metadata(id) ON DELETE CASCADE,
+    FOREIGN KEY (album_id) REFERENCES album(id) ON DELETE CASCADE
+);
+
+insert:
+INSERT OR IGNORE INTO media_album (media_id, album_id, sort_order)
+VALUES (:mediaId, :albumId, (SELECT COALESCE(MAX(sort_order) + 1, 0) FROM media_album WHERE album_id = :albumId));
+
+deleteByMediaIdAndAlbumId:
+DELETE FROM media_album WHERE media_id = ? AND album_id = ?;
+
+selectAlbumsByMediaId:
+SELECT album.*
+FROM album
+INNER JOIN media_album ON album.id = media_album.album_id
+WHERE media_album.media_id = ?
+ORDER BY album.name ASC;
+
+selectAll:
+SELECT * FROM media_album;
+
+selectMediaIdsByAlbumOrdered:
+SELECT media_id FROM media_album WHERE album_id = ? ORDER BY sort_order ASC;
+
+updateSortOrder:
+UPDATE media_album SET sort_order = ? WHERE album_id = ? AND media_id = ?;

@@ -21,16 +21,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import io.github.kiyohitonara.biwa.domain.model.AppTheme
 import io.github.kiyohitonara.biwa.presentation.about.AboutScreen
+import io.github.kiyohitonara.biwa.presentation.albummanagement.AlbumManagementScreen
 import io.github.kiyohitonara.biwa.presentation.library.LibraryScreen
 import io.github.kiyohitonara.biwa.presentation.mediaviewer.MediaViewerScreen
 import io.github.kiyohitonara.biwa.presentation.settings.SettingsScreen
 import io.github.kiyohitonara.biwa.presentation.settings.SettingsViewModel
-import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementScreen
 import org.koin.compose.viewmodel.koinViewModel
 
 private const val ROUTE_LIBRARY = "library"
 private const val ROUTE_MEDIA_VIEWER = "media_viewer/{id}"
-private const val ROUTE_TAG_MANAGEMENT = "tag_management"
+private const val ROUTE_ALBUM_MANAGEMENT = "album_management"
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_ABOUT = "about"
 
@@ -80,7 +80,7 @@ actual fun App() {
             composable(ROUTE_LIBRARY) {
                 LibraryScreen(
                     onOpenMediaViewer = { id -> navController.navigate("media_viewer/$id") },
-                    onManageTags = { navController.navigate(ROUTE_TAG_MANAGEMENT) },
+                    onManageAlbums = { navController.navigate(ROUTE_ALBUM_MANAGEMENT) },
                     onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
                 )
             }
@@ -90,8 +90,8 @@ actual fun App() {
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable(ROUTE_TAG_MANAGEMENT) {
-                TagManagementScreen(onBack = { navController.popBackStack() })
+            composable(ROUTE_ALBUM_MANAGEMENT) {
+                AlbumManagementScreen(onBack = { navController.popBackStack() })
             }
             composable(ROUTE_SETTINGS) {
                 SettingsScreen(

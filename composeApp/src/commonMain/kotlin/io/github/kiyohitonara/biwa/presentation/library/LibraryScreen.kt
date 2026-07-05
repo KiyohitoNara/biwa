@@ -73,12 +73,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import io.github.kiyohitonara.biwa.domain.model.Album
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.model.SortOrder
-import io.github.kiyohitonara.biwa.domain.model.Tag
-import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementUiState
-import io.github.kiyohitonara.biwa.presentation.tagmanagement.TagManagementViewModel
+import io.github.kiyohitonara.biwa.presentation.albummanagement.AlbumManagementUiState
+import io.github.kiyohitonara.biwa.presentation.albummanagement.AlbumManagementViewModel
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -96,7 +96,7 @@ private const val DRAG_DIMMED_ALPHA = 0.55f
 @Composable
 fun LibraryScreen(
     onOpenMediaViewer: (String) -> Unit,
-    onManageTags: () -> Unit,
+    onManageAlbums: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = koinViewModel(),
@@ -118,8 +118,8 @@ fun LibraryScreen(
         modifier = modifier,
         topBar = {
             LibraryTopBar(
-                sortEnabled = (uiState as? LibraryUiState.Success)?.let { it.activeTagIds.size <= 1 } ?: true,
-                onManageTags = onManageTags,
+                sortEnabled = (uiState as? LibraryUiState.Success)?.let { it.activeAlbumIds.size <= 1 } ?: true,
+                onManageAlbums = onManageAlbums,
                 onSort = { showSortSheet = true },
                 onOpenSettings = onOpenSettings,
             )
@@ -216,12 +216,12 @@ private fun LibraryEffects(
     }
 }
 
-/** Library top app bar with manage-tags, sort, and overflow (settings) actions. */
+/** Library top app bar with manage-albums, sort, and overflow (settings) actions. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LibraryTopBar(
     sortEnabled: Boolean,
-    onManageTags: () -> Unit,
+    onManageAlbums: () -> Unit,
     onSort: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -229,10 +229,10 @@ private fun LibraryTopBar(
     TopAppBar(
         title = { Text("Library") },
         actions = {
-            IconButton(onClick = onManageTags) {
+            IconButton(onClick = onManageAlbums) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Label,
-                    contentDescription = "Manage tags",
+                    contentDescription = "Manage albums",
                 )
             }
             IconButton(onClick = onSort, enabled = sortEnabled) {
@@ -263,7 +263,7 @@ private fun LibraryTopBar(
     )
 }
 
-/** Scaffold body: optional progress bar, tag filter row, and the media grid / empty state. */
+/** Scaffold body: optional progress bar, album filter row, and the media grid / empty state. */
 @Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
 @Composable
 private fun LibraryContent(
@@ -278,10 +278,10 @@ private fun LibraryContent(
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
         val successState = uiState as? LibraryUiState.Success
-        TagFilterChipsRow(
-            availableTags = successState?.availableTags ?: emptyList(),
-            activeTagIds = successState?.activeTagIds ?: emptySet(),
-            onTagToggle = viewModel::toggleTag,
+        AlbumFilterChipsRow(
+            availableAlbums = successState?.availableAlbums ?: emptyList(),
+            activeAlbumIds = successState?.activeAlbumIds ?: emptySet(),
+            onAlbumToggle = viewModel::toggleAlbum,
         )
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -294,7 +294,7 @@ private fun LibraryContent(
                     } else {
                         MediaGrid(
                             items = uiState.items,
-                            draggable = uiState.activeTagIds.size <= 1,
+                            draggable = uiState.activeAlbumIds.size <= 1,
                             onTap = { viewModel.openMedia(it.id) },
                             onLongPress = onLongPress,
                             onReorder = viewModel::reorderMedia,
@@ -306,12 +306,12 @@ private fun LibraryContent(
 }
 
 @Composable
-private fun TagFilterChipsRow(
-    availableTags: List<Tag>,
-    activeTagIds: Set<String>,
-    onTagToggle: (String) -> Unit,
+private fun AlbumFilterChipsRow(
+    availableAlbums: List<Album>,
+    activeAlbumIds: Set<String>,
+    onAlbumToggle: (String) -> Unit,
 ) {
-    if (availableTags.isEmpty()) return
+    if (availableAlbums.isEmpty()) return
     Row(
         modifier =
             Modifier
@@ -321,11 +321,11 @@ private fun TagFilterChipsRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        availableTags.forEach { tag ->
+        availableAlbums.forEach { album ->
             FilterChip(
-                selected = tag.id in activeTagIds,
-                onClick = { onTagToggle(tag.id) },
-                label = { Text(tag.name) },
+                selected = album.id in activeAlbumIds,
+                onClick = { onAlbumToggle(album.id) },
+                label = { Text(album.name) },
             )
         }
     }
@@ -366,8 +366,8 @@ private fun MediaContextSheet(
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val tagVm: TagManagementViewModel = koinViewModel(key = item.id) { parametersOf(item.id) }
-    val tagState by tagVm.uiState.collectAsStateWithLifecycle()
+    val albumVm: AlbumManagementViewModel = koinViewModel(key = item.id) { parametersOf(item.id) }
+    val albumState by albumVm.uiState.collectAsStateWithLifecycle()
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(modifier = Modifier.padding(bottom = 32.dp)) {
@@ -379,10 +379,10 @@ private fun MediaContextSheet(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
 
-            val ready = tagState as? TagManagementUiState.Ready
-            if (ready != null && ready.allTags.isNotEmpty()) {
+            val ready = albumState as? AlbumManagementUiState.Ready
+            if (ready != null && ready.allAlbums.isNotEmpty()) {
                 Text(
-                    text = "Tags",
+                    text = "Albums",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
@@ -394,11 +394,11 @@ private fun MediaContextSheet(
                             .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    ready.allTags.forEach { tag ->
+                    ready.allAlbums.forEach { album ->
                         FilterChip(
-                            selected = ready.mediaTags.any { it.id == tag.id },
-                            onClick = { tagVm.toggleTagForMedia(tag.id) },
-                            label = { Text(tag.name) },
+                            selected = ready.mediaAlbums.any { it.id == album.id },
+                            onClick = { albumVm.toggleMediaInAlbum(album.id) },
+                            label = { Text(album.name) },
                         )
                     }
                 }

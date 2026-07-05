@@ -10,13 +10,13 @@ import io.github.kiyohitonara.biwa.domain.model.SortOrder
 import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetAllAlbumsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForTagUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsInAllAlbumsUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForAlbumUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.ReorderAlbumMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.ReorderTagMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
  * Manages UI state for the media library screen.
  *
  * Items are always displayed in their persisted manual order
- * ([MediaItem.sortOrder] globally, or the tag-specific order when a single tag
+ * ([MediaItem.sortOrder] globally, or the album-specific order when a single album
  * is active). Selecting a [SortOrder] is a one-shot reorder action that
  * computes a new order and persists it via the reorder use cases. Thumbnail
  * generation for items without a cached path is triggered automatically on
@@ -48,10 +48,10 @@ class LibraryViewModel(
     private val updateLastViewedAtUseCase: UpdateLastViewedAtUseCase,
     private val generateThumbnailUseCase: GenerateThumbnailUseCase,
     private val reorderMediaUseCase: ReorderMediaUseCase,
-    private val getAllTagsUseCase: GetAllTagsUseCase,
-    private val getMediaIdsWithAllTagsUseCase: GetMediaIdsWithAllTagsUseCase,
-    private val getOrderedMediaIdsForTagUseCase: GetOrderedMediaIdsForTagUseCase,
-    private val reorderTagMediaUseCase: ReorderTagMediaUseCase,
+    private val getAllAlbumsUseCase: GetAllAlbumsUseCase,
+    private val getMediaIdsInAllAlbumsUseCase: GetMediaIdsInAllAlbumsUseCase,
+    private val getOrderedMediaIdsForAlbumUseCase: GetOrderedMediaIdsForAlbumUseCase,
+    private val reorderAlbumMediaUseCase: ReorderAlbumMediaUseCase,
     private val addMediaUseCase: AddMediaUseCase,
     private val metadataExtractor: MediaMetadataExtractor,
     private val libraryDisplayState: LibraryDisplayState,
@@ -62,13 +62,13 @@ class LibraryViewModel(
     // IDs for which thumbnail generation has already been scheduled this session.
     private val generatingIds = mutableSetOf<String>()
 
-    private val _activeTagIds = MutableStateFlow<Set<String>>(emptySet())
+    private val _activeAlbumIds = MutableStateFlow<Set<String>>(emptySet())
 
-    /** IDs of tags currently selected as filters. */
-    val activeTagIds: StateFlow<Set<String>> = _activeTagIds
+    /** IDs of albums currently selected as filters. */
+    val activeAlbumIds: StateFlow<Set<String>> = _activeAlbumIds
 
     /**
-     * Current state of the library, reflecting the active tag filter and the
+     * Current state of the library, reflecting the active album filter and the
      * persisted manual ordering.
      *
      * Starts as [LibraryUiState.Loading] until the first DB emission arrives.
@@ -76,18 +76,18 @@ class LibraryViewModel(
      * disappears to survive configuration changes.
      */
     val uiState: StateFlow<LibraryUiState> =
-        _activeTagIds
-            .flatMapLatest { tagIds ->
+        _activeAlbumIds
+            .flatMapLatest { albumIds ->
                 val mediaFlow =
                     when {
-                        tagIds.isEmpty() ->
+                        albumIds.isEmpty() ->
                             getAllMediaUseCase
                                 .execute()
                                 .map { items -> items.sortedBy { it.sortOrder } }
-                        tagIds.size == 1 ->
+                        albumIds.size == 1 ->
                             combine(
                                 getAllMediaUseCase.execute(),
-                                getOrderedMediaIdsForTagUseCase.execute(tagIds.first()),
+                                getOrderedMediaIdsForAlbumUseCase.execute(albumIds.first()),
                             ) { items, orderedIds ->
                                 val idIndex = orderedIds.withIndex().associate { (i, id) -> id to i }
                                 items.filter { it.id in idIndex }.sortedBy { idIndex[it.id] ?: Int.MAX_VALUE }
@@ -95,17 +95,17 @@ class LibraryViewModel(
                         else ->
                             combine(
                                 getAllMediaUseCase.execute(),
-                                getMediaIdsWithAllTagsUseCase.execute(tagIds.toList()),
+                                getMediaIdsInAllAlbumsUseCase.execute(albumIds.toList()),
                             ) { items, filteredIds ->
                                 items.filter { it.id in filteredIds }.sortedBy { it.sortOrder }
                             }
                     }
 
-                combine(mediaFlow, getAllTagsUseCase.execute()) { items, allTags ->
+                combine(mediaFlow, getAllAlbumsUseCase.execute()) { items, allAlbums ->
                     LibraryUiState.Success(
                         items = items,
-                        availableTags = allTags,
-                        activeTagIds = tagIds,
+                        availableAlbums = allAlbums,
+                        activeAlbumIds = albumIds,
                     )
                 }
             }.map { state ->
@@ -154,20 +154,20 @@ class LibraryViewModel(
     /**
      * Reorders the currently displayed list by [sortOrder] and persists the new ordering.
      *
-     * When exactly one tag is active, the order is saved as the tag-specific manual order
-     * via [ReorderTagMediaUseCase]; otherwise the global manual order is updated via
+     * When exactly one album is active, the order is saved as the album-specific manual order
+     * via [ReorderAlbumMediaUseCase]; otherwise the global manual order is updated via
      * [ReorderMediaUseCase]. No-op when [uiState] is not [LibraryUiState.Success] or when
-     * multiple tag filters are active (the operation has no defined target ordering).
+     * multiple album filters are active (the operation has no defined target ordering).
      */
     fun setSortOrder(sortOrder: SortOrder) {
         val state = uiState.value as? LibraryUiState.Success ?: return
-        if (state.activeTagIds.size > 1) return
+        if (state.activeAlbumIds.size > 1) return
         val orderedIds = state.items.applySort(sortOrder).map { it.id }
-        val singleTagId = state.activeTagIds.singleOrNull()
-        log.i { "Set sort order=$sortOrder tagId=$singleTagId count=${orderedIds.size}" }
+        val singleAlbumId = state.activeAlbumIds.singleOrNull()
+        log.i { "Set sort order=$sortOrder albumId=$singleAlbumId count=${orderedIds.size}" }
         viewModelScope.launch {
-            if (singleTagId != null) {
-                reorderTagMediaUseCase.execute(singleTagId, orderedIds)
+            if (singleAlbumId != null) {
+                reorderAlbumMediaUseCase.execute(singleAlbumId, orderedIds)
             } else {
                 reorderMediaUseCase.execute(orderedIds)
             }
@@ -175,24 +175,24 @@ class LibraryViewModel(
     }
 
     /**
-     * Toggles [tagId] in the active tag filter set.
+     * Toggles [albumId] in the active album filter set.
      *
-     * If [tagId] is already active it is removed; otherwise it is added.
-     * An empty active set means no tag filter is applied.
+     * If [albumId] is already active it is removed; otherwise it is added.
+     * An empty active set means no album filter is applied.
      */
-    fun toggleTag(tagId: String) {
-        _activeTagIds.update { ids ->
-            if (tagId in ids) ids - tagId else ids + tagId
+    fun toggleAlbum(albumId: String) {
+        _activeAlbumIds.update { ids ->
+            if (albumId in ids) ids - albumId else ids + albumId
         }
-        log.d { "Toggle tag filter tagId=$tagId active=${_activeTagIds.value}" }
+        log.d { "Toggle album filter albumId=$albumId active=${_activeAlbumIds.value}" }
     }
 
     /**
      * Moves the item at [fromIndex] to [toIndex] within the currently displayed list
      * and persists the new ordering.
      *
-     * When exactly one tag is active, the ordering is saved as a tag-specific sort order
-     * via [ReorderTagMediaUseCase]. Otherwise the global manual ordering is updated via
+     * When exactly one album is active, the ordering is saved as a album-specific sort order
+     * via [ReorderAlbumMediaUseCase]. Otherwise the global manual ordering is updated via
      * [ReorderMediaUseCase].
      *
      * No-op if [uiState] is not [LibraryUiState.Success].
@@ -206,11 +206,11 @@ class LibraryViewModel(
         val item = items.removeAt(fromIndex)
         items.add(toIndex.coerceIn(0, items.size), item)
         val orderedIds = items.map { it.id }
-        val singleTagId = state.activeTagIds.singleOrNull()
-        log.d { "Reorder media from=$fromIndex to=$toIndex tagId=$singleTagId" }
+        val singleAlbumId = state.activeAlbumIds.singleOrNull()
+        log.d { "Reorder media from=$fromIndex to=$toIndex albumId=$singleAlbumId" }
         viewModelScope.launch {
-            if (singleTagId != null) {
-                reorderTagMediaUseCase.execute(singleTagId, orderedIds)
+            if (singleAlbumId != null) {
+                reorderAlbumMediaUseCase.execute(singleAlbumId, orderedIds)
             } else {
                 reorderMediaUseCase.execute(orderedIds)
             }

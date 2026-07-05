@@ -3,22 +3,22 @@ package io.github.kiyohitonara.biwa.presentation.library
 import co.touchlab.kermit.Logger
 import co.touchlab.kermit.loggerConfigInit
 import io.github.kiyohitonara.biwa.domain.extractor.MediaMetadataExtractor
+import io.github.kiyohitonara.biwa.domain.model.Album
 import io.github.kiyohitonara.biwa.domain.model.MediaFileMetadata
 import io.github.kiyohitonara.biwa.domain.model.MediaItem
 import io.github.kiyohitonara.biwa.domain.model.MediaType
 import io.github.kiyohitonara.biwa.domain.model.SortOrder
-import io.github.kiyohitonara.biwa.domain.model.Tag
 import io.github.kiyohitonara.biwa.domain.storage.FileStorage
 import io.github.kiyohitonara.biwa.domain.usecase.AddMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GenerateThumbnailUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetAllAlbumsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllMediaUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetAllTagsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetMediaByIdUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsWithAllTagsUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForTagUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsInAllAlbumsUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForAlbumUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.ReorderAlbumMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderMediaUseCase
-import io.github.kiyohitonara.biwa.domain.usecase.ReorderTagMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.UpdateLastViewedAtUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,7 +46,7 @@ class LibraryViewModelTest {
     private val fakeItems = MutableStateFlow<List<MediaItem>>(emptyList())
     private val fakeRepository = FakeMediaRepository(fakeItems)
     private val fakeThumbnailRepository = FakeThumbnailRepository()
-    private val fakeTagRepository = FakeTagRepository()
+    private val fakeAlbumRepository = FakeAlbumRepository()
     private lateinit var viewModel: LibraryViewModel
     private lateinit var collectionJob: Job
 
@@ -55,7 +55,7 @@ class LibraryViewModelTest {
     private fun buildViewModel(
         repository: FakeMediaRepository = fakeRepository,
         thumbnailRepository: FakeThumbnailRepository = fakeThumbnailRepository,
-        tagRepository: FakeTagRepository = fakeTagRepository,
+        albumRepository: FakeAlbumRepository = fakeAlbumRepository,
         displayState: LibraryDisplayState = libraryDisplayState,
     ) = LibraryViewModel(
         getAllMediaUseCase = GetAllMediaUseCase(repository),
@@ -64,10 +64,10 @@ class LibraryViewModelTest {
         updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(repository, clock = { 0L }),
         generateThumbnailUseCase = GenerateThumbnailUseCase(thumbnailRepository, repository),
         reorderMediaUseCase = ReorderMediaUseCase(repository),
-        getAllTagsUseCase = GetAllTagsUseCase(tagRepository),
-        getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(tagRepository),
-        getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(tagRepository),
-        reorderTagMediaUseCase = ReorderTagMediaUseCase(tagRepository),
+        getAllAlbumsUseCase = GetAllAlbumsUseCase(albumRepository),
+        getMediaIdsInAllAlbumsUseCase = GetMediaIdsInAllAlbumsUseCase(albumRepository),
+        getOrderedMediaIdsForAlbumUseCase = GetOrderedMediaIdsForAlbumUseCase(albumRepository),
+        reorderAlbumMediaUseCase = ReorderAlbumMediaUseCase(albumRepository),
         addMediaUseCase = AddMediaUseCase(repository, fakeFileStorage(), clock = { 0L }),
         metadataExtractor = fakeMetadataExtractor(),
         libraryDisplayState = displayState,
@@ -191,10 +191,10 @@ class LibraryViewModelTest {
                     updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
                     generateThumbnailUseCase = GenerateThumbnailUseCase(fakeThumbnailRepository, fakeRepository),
                     reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
-                    getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
-                    getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
-                    getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
-                    reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
+                    getAllAlbumsUseCase = GetAllAlbumsUseCase(fakeAlbumRepository),
+                    getMediaIdsInAllAlbumsUseCase = GetMediaIdsInAllAlbumsUseCase(fakeAlbumRepository),
+                    getOrderedMediaIdsForAlbumUseCase = GetOrderedMediaIdsForAlbumUseCase(fakeAlbumRepository),
+                    reorderAlbumMediaUseCase = ReorderAlbumMediaUseCase(fakeAlbumRepository),
                     addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
                     metadataExtractor = fakeMetadataExtractor(),
                     libraryDisplayState = LibraryDisplayState(),
@@ -373,22 +373,22 @@ class LibraryViewModelTest {
         }
 
     @Test
-    fun `setSortOrder is a no-op when multiple tag filters are active`() =
+    fun `setSortOrder is a no-op when multiple album filters are active`() =
         runTest {
-            fakeTagRepository.tags.value =
+            fakeAlbumRepository.albums.value =
                 listOf(
-                    Tag("t1", "Nature", 0L),
-                    Tag("t2", "Travel", 0L),
+                    Album("t1", "Nature", 0L),
+                    Album("t2", "Travel", 0L),
                 )
             fakeItems.value =
                 listOf(
                     videoItem().copy(id = "a", filePath = "/media/a.mp4"),
                     videoItem().copy(id = "b", filePath = "/media/b.mp4"),
                 )
-            fakeTagRepository.addTagToMedia("a", "t1")
-            fakeTagRepository.addTagToMedia("a", "t2")
-            viewModel.toggleTag("t1")
-            viewModel.toggleTag("t2")
+            fakeAlbumRepository.addMediaToAlbum("a", "t1")
+            fakeAlbumRepository.addMediaToAlbum("a", "t2")
+            viewModel.toggleAlbum("t1")
+            viewModel.toggleAlbum("t2")
 
             viewModel.setSortOrder(SortOrder.FILE_NAME)
 
@@ -396,17 +396,17 @@ class LibraryViewModelTest {
         }
 
     @Test
-    fun `setSortOrder with single active tag persists tag-specific order`() =
+    fun `setSortOrder with single active album persists album-specific order`() =
         runTest {
-            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeAlbumRepository.albums.value = listOf(Album("t1", "Nature", 0L))
             fakeItems.value =
                 listOf(
                     videoItem().copy(id = "b", displayName = "b.mp4", filePath = "/media/b.mp4"),
                     videoItem().copy(id = "a", displayName = "a.mp4", filePath = "/media/a.mp4"),
                 )
-            fakeTagRepository.addTagToMedia("a", "t1")
-            fakeTagRepository.addTagToMedia("b", "t1")
-            viewModel.toggleTag("t1")
+            fakeAlbumRepository.addMediaToAlbum("a", "t1")
+            fakeAlbumRepository.addMediaToAlbum("b", "t1")
+            viewModel.toggleAlbum("t1")
 
             viewModel.setSortOrder(SortOrder.FILE_NAME)
 
@@ -441,19 +441,19 @@ class LibraryViewModelTest {
         }
 
     @Test
-    fun `reorderMedia with single active tag persists tag-specific order`() =
+    fun `reorderMedia with single active album persists album-specific order`() =
         runTest {
-            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeAlbumRepository.albums.value = listOf(Album("t1", "Nature", 0L))
             fakeItems.value =
                 listOf(
                     videoItem().copy(id = "a", filePath = "/media/a.mp4"),
                     videoItem().copy(id = "b", filePath = "/media/b.mp4"),
                     videoItem().copy(id = "c", filePath = "/media/c.mp4"),
                 )
-            fakeTagRepository.addTagToMedia("a", "t1")
-            fakeTagRepository.addTagToMedia("b", "t1")
-            fakeTagRepository.addTagToMedia("c", "t1")
-            viewModel.toggleTag("t1")
+            fakeAlbumRepository.addMediaToAlbum("a", "t1")
+            fakeAlbumRepository.addMediaToAlbum("b", "t1")
+            fakeAlbumRepository.addMediaToAlbum("c", "t1")
+            viewModel.toggleAlbum("t1")
 
             // Move "a" (index 0) to index 2 → expected order: b, c, a
             viewModel.reorderMedia(fromIndex = 0, toIndex = 2)
@@ -463,17 +463,17 @@ class LibraryViewModelTest {
         }
 
     @Test
-    fun `reorderMedia with single tag does not affect global sort order`() =
+    fun `reorderMedia with single album does not affect global sort order`() =
         runTest {
-            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeAlbumRepository.albums.value = listOf(Album("t1", "Nature", 0L))
             fakeItems.value =
                 listOf(
                     videoItem().copy(id = "a", sortOrder = 0L, filePath = "/media/a.mp4"),
                     videoItem().copy(id = "b", sortOrder = 1L, filePath = "/media/b.mp4"),
                 )
-            fakeTagRepository.addTagToMedia("a", "t1")
-            fakeTagRepository.addTagToMedia("b", "t1")
-            viewModel.toggleTag("t1")
+            fakeAlbumRepository.addMediaToAlbum("a", "t1")
+            fakeAlbumRepository.addMediaToAlbum("b", "t1")
+            viewModel.toggleAlbum("t1")
 
             viewModel.reorderMedia(fromIndex = 0, toIndex = 1)
 
@@ -483,22 +483,22 @@ class LibraryViewModelTest {
         }
 
     @Test
-    fun `single tag manual order is preserved when toggling off and on again`() =
+    fun `single album manual order is preserved when toggling off and on again`() =
         runTest {
-            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeAlbumRepository.albums.value = listOf(Album("t1", "Nature", 0L))
             fakeItems.value =
                 listOf(
                     videoItem().copy(id = "a", filePath = "/media/a.mp4"),
                     videoItem().copy(id = "b", filePath = "/media/b.mp4"),
                 )
-            fakeTagRepository.addTagToMedia("a", "t1")
-            fakeTagRepository.addTagToMedia("b", "t1")
-            viewModel.toggleTag("t1")
+            fakeAlbumRepository.addMediaToAlbum("a", "t1")
+            fakeAlbumRepository.addMediaToAlbum("b", "t1")
+            viewModel.toggleAlbum("t1")
             viewModel.reorderMedia(fromIndex = 0, toIndex = 1) // b, a
 
             // Toggle off then on again
-            viewModel.toggleTag("t1")
-            viewModel.toggleTag("t1")
+            viewModel.toggleAlbum("t1")
+            viewModel.toggleAlbum("t1")
 
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
             assertEquals(listOf("b", "a"), state.items.map { it.id })
@@ -551,49 +551,49 @@ class LibraryViewModelTest {
             assertEquals(1, thumbnailRepository.generatedPaths.size)
         }
 
-    // ── Tag filter ────────────────────────────────────────────────────────────
+    // ── Album filter ────────────────────────────────────────────────────────────
 
     @Test
-    fun `uiState exposes availableTags from repository`() =
+    fun `uiState exposes availableAlbums from repository`() =
         runTest {
-            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeAlbumRepository.albums.value = listOf(Album("t1", "Nature", 0L))
 
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-            assertEquals(1, state.availableTags.size)
-            assertEquals("Nature", state.availableTags.first().name)
+            assertEquals(1, state.availableAlbums.size)
+            assertEquals("Nature", state.availableAlbums.first().name)
         }
 
     @Test
-    fun `toggleTag adds tag to activeTagIds`() =
+    fun `toggleAlbum adds album to activeAlbumIds`() =
         runTest {
-            viewModel.toggleTag("t1")
+            viewModel.toggleAlbum("t1")
 
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-            assertTrue(state.activeTagIds.contains("t1"))
+            assertTrue(state.activeAlbumIds.contains("t1"))
         }
 
     @Test
-    fun `toggleTag removes tag when already active`() =
+    fun `toggleAlbum removes album when already active`() =
         runTest {
-            viewModel.toggleTag("t1")
-            viewModel.toggleTag("t1")
+            viewModel.toggleAlbum("t1")
+            viewModel.toggleAlbum("t1")
 
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
-            assertTrue(state.activeTagIds.isEmpty())
+            assertTrue(state.activeAlbumIds.isEmpty())
         }
 
     @Test
-    fun `toggleTag filters items by active tag`() =
+    fun `toggleAlbum filters items by active album`() =
         runTest {
-            fakeTagRepository.tags.value = listOf(Tag("t1", "Nature", 0L))
+            fakeAlbumRepository.albums.value = listOf(Album("t1", "Nature", 0L))
             fakeItems.value =
                 listOf(
                     videoItem().copy(id = "a", filePath = "/media/a.mp4"),
                     videoItem().copy(id = "b", filePath = "/media/b.mp4"),
                 )
-            fakeTagRepository.addTagToMedia("a", "t1")
+            fakeAlbumRepository.addMediaToAlbum("a", "t1")
 
-            viewModel.toggleTag("t1")
+            viewModel.toggleAlbum("t1")
 
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
             assertEquals(1, state.items.size)
@@ -601,24 +601,24 @@ class LibraryViewModelTest {
         }
 
     @Test
-    fun `toggleTag with multiple tags applies AND logic`() =
+    fun `toggleAlbum with multiple albums applies AND logic`() =
         runTest {
-            fakeTagRepository.tags.value =
+            fakeAlbumRepository.albums.value =
                 listOf(
-                    Tag("t1", "Nature", 0L),
-                    Tag("t2", "Travel", 0L),
+                    Album("t1", "Nature", 0L),
+                    Album("t2", "Travel", 0L),
                 )
             fakeItems.value =
                 listOf(
                     videoItem().copy(id = "both", filePath = "/media/both.mp4"),
                     videoItem().copy(id = "one", filePath = "/media/one.mp4"),
                 )
-            fakeTagRepository.addTagToMedia("both", "t1")
-            fakeTagRepository.addTagToMedia("both", "t2")
-            fakeTagRepository.addTagToMedia("one", "t1")
+            fakeAlbumRepository.addMediaToAlbum("both", "t1")
+            fakeAlbumRepository.addMediaToAlbum("both", "t2")
+            fakeAlbumRepository.addMediaToAlbum("one", "t1")
 
-            viewModel.toggleTag("t1")
-            viewModel.toggleTag("t2")
+            viewModel.toggleAlbum("t1")
+            viewModel.toggleAlbum("t2")
 
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
             assertEquals(1, state.items.size)
@@ -626,17 +626,17 @@ class LibraryViewModelTest {
         }
 
     @Test
-    fun `clearing all active tags shows all items`() =
+    fun `clearing all active albums shows all items`() =
         runTest {
             fakeItems.value =
                 listOf(
                     videoItem().copy(id = "a", filePath = "/media/a.mp4"),
                     videoItem().copy(id = "b", filePath = "/media/b.mp4"),
                 )
-            fakeTagRepository.addTagToMedia("a", "t1")
+            fakeAlbumRepository.addMediaToAlbum("a", "t1")
 
-            viewModel.toggleTag("t1")
-            viewModel.toggleTag("t1")
+            viewModel.toggleAlbum("t1")
+            viewModel.toggleAlbum("t1")
 
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
             assertEquals(2, state.items.size)
@@ -687,10 +687,10 @@ class LibraryViewModelTest {
                     updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeRepository, clock = { 0L }),
                     generateThumbnailUseCase = GenerateThumbnailUseCase(fakeThumbnailRepository, fakeRepository),
                     reorderMediaUseCase = ReorderMediaUseCase(fakeRepository),
-                    getAllTagsUseCase = GetAllTagsUseCase(fakeTagRepository),
-                    getMediaIdsWithAllTagsUseCase = GetMediaIdsWithAllTagsUseCase(fakeTagRepository),
-                    getOrderedMediaIdsForTagUseCase = GetOrderedMediaIdsForTagUseCase(fakeTagRepository),
-                    reorderTagMediaUseCase = ReorderTagMediaUseCase(fakeTagRepository),
+                    getAllAlbumsUseCase = GetAllAlbumsUseCase(fakeAlbumRepository),
+                    getMediaIdsInAllAlbumsUseCase = GetMediaIdsInAllAlbumsUseCase(fakeAlbumRepository),
+                    getOrderedMediaIdsForAlbumUseCase = GetOrderedMediaIdsForAlbumUseCase(fakeAlbumRepository),
+                    reorderAlbumMediaUseCase = ReorderAlbumMediaUseCase(fakeAlbumRepository),
                     addMediaUseCase = AddMediaUseCase(fakeRepository, fakeFileStorage(), clock = { 0L }),
                     metadataExtractor = partialExtractor,
                     libraryDisplayState = LibraryDisplayState(),
