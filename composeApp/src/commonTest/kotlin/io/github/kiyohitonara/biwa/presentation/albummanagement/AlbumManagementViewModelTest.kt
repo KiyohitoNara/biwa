@@ -9,6 +9,7 @@ import io.github.kiyohitonara.biwa.domain.usecase.CreateAlbumUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.DeleteAlbumUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAlbumsForMediaUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetAllAlbumsUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.MoveAlbumUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.RemoveMediaFromAlbumUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.RenameAlbumUseCase
 import kotlinx.coroutines.CoroutineScope
@@ -48,6 +49,7 @@ class AlbumManagementViewModelTest {
                     clock = { 0L },
                 ),
             renameAlbumUseCase = RenameAlbumUseCase(fakeRepository),
+            moveAlbumUseCase = MoveAlbumUseCase(fakeRepository),
             deleteAlbumUseCase = DeleteAlbumUseCase(fakeRepository),
             getAlbumsForMediaUseCase = GetAlbumsForMediaUseCase(fakeRepository),
             addMediaToAlbumUseCase = AddMediaToAlbumUseCase(fakeRepository),
@@ -232,6 +234,89 @@ class AlbumManagementViewModelTest {
 
             val state = assertIs<AlbumManagementUiState.Ready>(vm.uiState.value)
             assertTrue(state.mediaAlbums.isEmpty())
+        }
+
+    // ── Drill-down navigation ───────────────────────────────────────────────────
+
+    @Test
+    fun `currentAlbums shows only root albums at the top level`() =
+        runTest {
+            fakeRepository.albums.value =
+                listOf(
+                    Album("root", "Root", 0L),
+                    Album("child", "Child", 0L, parentId = "root"),
+                )
+            val vm = buildViewModel().activate()
+
+            val state = assertIs<AlbumManagementUiState.Ready>(vm.uiState.value)
+            assertEquals(listOf("root"), state.currentAlbums.map { it.id })
+            assertTrue(state.breadcrumb.isEmpty())
+        }
+
+    @Test
+    fun `enterAlbum shows children and breadcrumb`() =
+        runTest {
+            fakeRepository.albums.value =
+                listOf(
+                    Album("root", "Root", 0L),
+                    Album("child", "Child", 0L, parentId = "root"),
+                )
+            val vm = buildViewModel().activate()
+
+            vm.enterAlbum("root")
+
+            val state = assertIs<AlbumManagementUiState.Ready>(vm.uiState.value)
+            assertEquals("root", state.currentParentId)
+            assertEquals(listOf("child"), state.currentAlbums.map { it.id })
+            assertEquals(listOf("root"), state.breadcrumb.map { it.id })
+        }
+
+    @Test
+    fun `navigateUp returns to parent level and then reports root`() =
+        runTest {
+            fakeRepository.albums.value =
+                listOf(
+                    Album("root", "Root", 0L),
+                    Album("child", "Child", 0L, parentId = "root"),
+                )
+            val vm = buildViewModel().activate()
+            vm.enterAlbum("child")
+
+            assertTrue(vm.navigateUp())
+            assertEquals("root", (vm.uiState.value as AlbumManagementUiState.Ready).currentParentId)
+
+            assertTrue(vm.navigateUp())
+            assertEquals(null, (vm.uiState.value as AlbumManagementUiState.Ready).currentParentId)
+
+            assertTrue(!vm.navigateUp())
+        }
+
+    @Test
+    fun `createAlbum places the album under the opened album`() =
+        runTest {
+            fakeRepository.albums.value = listOf(Album("root", "Root", 0L))
+            val vm = buildViewModel().activate()
+            vm.enterAlbum("root")
+
+            vm.createAlbum("Child")
+
+            val created = fakeRepository.albums.value.first { it.name == "Child" }
+            assertEquals("root", created.parentId)
+        }
+
+    @Test
+    fun `validMoveTargets excludes the album and its descendants`() =
+        runTest {
+            fakeRepository.albums.value =
+                listOf(
+                    Album("a", "A", 0L),
+                    Album("b", "B", 0L, parentId = "a"),
+                    Album("other", "Other", 0L),
+                )
+            val vm = buildViewModel().activate()
+
+            val targets = vm.validMoveTargets("a").map { it.id }.toSet()
+            assertEquals(setOf("other"), targets)
         }
 }
 

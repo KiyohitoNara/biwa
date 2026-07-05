@@ -3,7 +3,8 @@ package io.github.kiyohitonara.biwa.domain.repository
 import io.github.kiyohitonara.biwa.domain.model.Album
 import kotlinx.coroutines.flow.Flow
 
-/** Provides CRUD operations for albums and their media associations. */
+/** Provides CRUD operations for albums, their nesting, and their media associations. */
+@Suppress("TooManyFunctions") // Cohesive album persistence surface (CRUD + nesting + media associations).
 interface AlbumRepository {
     /** Returns a flow of all albums, ordered alphabetically by name. */
     fun getAllAlbums(): Flow<List<Album>>

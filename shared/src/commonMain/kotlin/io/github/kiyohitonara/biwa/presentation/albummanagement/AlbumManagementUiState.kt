@@ -16,5 +16,11 @@ sealed interface AlbumManagementUiState {
          * Empty when the view is in global (non-media-specific) management mode.
          */
         val mediaAlbums: List<Album> = emptyList(),
+        /** The album currently opened during drill-down, or null at the root level. */
+        val currentParentId: String? = null,
+        /** Albums whose parent is [currentParentId], i.e. the entries shown at the current level. */
+        val currentAlbums: List<Album> = emptyList(),
+        /** Ancestor chain from the root down to the currently opened album; empty at the root. */
+        val breadcrumb: List<Album> = emptyList(),
     ) : AlbumManagementUiState
 }

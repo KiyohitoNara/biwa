@@ -1,11 +1,13 @@
 package io.github.kiyohitonara.biwa.presentation.albummanagement
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,10 +15,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -47,7 +51,7 @@ import io.github.kiyohitonara.biwa.domain.model.Album
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
-/** Screen for creating, renaming, and deleting albums globally. */
+/** Screen for creating, renaming, moving, and deleting albums, with drill-down through nested albums. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
 @Composable
@@ -60,17 +64,22 @@ fun AlbumManagementScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<Album?>(null) }
+    var moveTarget by remember { mutableStateOf<Album?>(null) }
     var deleteTarget by remember { mutableStateOf<Album?>(null) }
 
     LaunchedEffect(viewModel.error) {
-        viewModel.error.collect { message ->
-            snackbarHostState.showSnackbar(message)
-        }
+        viewModel.error.collect { message -> snackbarHostState.showSnackbar(message) }
     }
 
+    val ready = uiState as? AlbumManagementUiState.Ready
     Scaffold(
         modifier = modifier,
-        topBar = { AlbumTopBar(onBack = onBack) },
+        topBar = {
+            AlbumTopBar(
+                title = ready?.breadcrumb?.lastOrNull()?.name ?: "Albums",
+                onBack = { if (viewModel.navigateUp()) Unit else onBack() },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateDialog = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Add album")
@@ -79,8 +88,10 @@ fun AlbumManagementScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         AlbumList(
-            uiState = uiState,
+            ready = ready,
+            onOpen = { viewModel.enterAlbum(it.id) },
             onRename = { renameTarget = it },
+            onMove = { moveTarget = it },
             onDelete = { deleteTarget = it },
             modifier =
                 Modifier
@@ -89,33 +100,28 @@ fun AlbumManagementScreen(
         )
     }
 
-    if (showCreateDialog) {
-        AlbumNameDialog(
-            title = "New album",
-            initialName = "",
-            onConfirm = { name ->
-                viewModel.createAlbum(name)
-                showCreateDialog = false
-            },
-            onDismiss = { showCreateDialog = false },
-        )
-    }
-
-    AlbumEditDialogs(
+    AlbumManagementDialogs(
+        showCreateDialog = showCreateDialog,
         renameTarget = renameTarget,
+        moveTarget = moveTarget,
         deleteTarget = deleteTarget,
         viewModel = viewModel,
+        onDismissCreate = { showCreateDialog = false },
         onDismissRename = { renameTarget = null },
+        onDismissMove = { moveTarget = null },
         onDismissDelete = { deleteTarget = null },
     )
 }
 
-/** Album screen top app bar with a back navigation icon. */
+/** Album screen top app bar with a back navigation icon and the current album name as title. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AlbumTopBar(onBack: () -> Unit) {
+private fun AlbumTopBar(
+    title: String,
+    onBack: () -> Unit,
+) {
     TopAppBar(
-        title = { Text("Albums") },
+        title = { Text(title) },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(
@@ -127,25 +133,31 @@ private fun AlbumTopBar(onBack: () -> Unit) {
     )
 }
 
-/** Renders the empty state or the scrollable list of albums. */
+/** Renders the empty state or the scrollable list of albums at the current level. */
 @Composable
 private fun AlbumList(
-    uiState: AlbumManagementUiState,
+    ready: AlbumManagementUiState.Ready?,
+    onOpen: (Album) -> Unit,
     onRename: (Album) -> Unit,
+    onMove: (Album) -> Unit,
     onDelete: (Album) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val ready = uiState as? AlbumManagementUiState.Ready ?: return
-    if (ready.allAlbums.isEmpty()) {
+    if (ready == null) return
+    if (ready.currentAlbums.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            EmptyAlbums()
+            EmptyAlbums(isRoot = ready.currentParentId == null)
         }
     } else {
+        val parentIds = remember(ready.allAlbums) { ready.allAlbums.mapNotNull { it.parentId }.toSet() }
         LazyColumn(modifier = modifier) {
-            items(ready.allAlbums, key = { it.id }) { album ->
+            items(ready.currentAlbums, key = { it.id }) { album ->
                 AlbumRow(
                     album = album,
+                    hasChildren = album.id in parentIds,
+                    onOpen = { onOpen(album) },
                     onRename = { onRename(album) },
+                    onMove = { onMove(album) },
                     onDelete = { onDelete(album) },
                 )
                 HorizontalDivider()
@@ -154,16 +166,123 @@ private fun AlbumList(
     }
 }
 
-/** The rename and delete confirmation dialogs, shown when their target album is set. */
+@Composable
+private fun AlbumRow(
+    album: Album,
+    hasChildren: Boolean,
+    onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onMove: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onOpen)
+                .padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = album.name,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        if (hasChildren) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        AlbumRowMenu(onRename = onRename, onMove = onMove, onDelete = onDelete)
+    }
+}
+
+/** The overflow menu for a single album row: rename, move, or delete. */
+@Composable
+private fun AlbumRowMenu(
+    onRename: () -> Unit,
+    onMove: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(imageVector = Icons.Filled.MoreVert, contentDescription = "More")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Rename") },
+                onClick = {
+                    expanded = false
+                    onRename()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Move to…") },
+                onClick = {
+                    expanded = false
+                    onMove()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                onClick = {
+                    expanded = false
+                    onDelete()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyAlbums(isRoot: Boolean) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(16.dp),
+    ) {
+        Text(
+            text = if (isRoot) "No albums yet" else "No sub-albums yet",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = "Tap + to create ${if (isRoot) "your first album" else "a sub-album"}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Hosts the create, rename, move, and delete dialogs, each shown when its trigger state is set. */
 @Suppress("ktlint:compose:vm-forwarding-check", "ViewModelForwarding")
 @Composable
-private fun AlbumEditDialogs(
+private fun AlbumManagementDialogs(
+    showCreateDialog: Boolean,
     renameTarget: Album?,
+    moveTarget: Album?,
     deleteTarget: Album?,
     viewModel: AlbumManagementViewModel,
+    onDismissCreate: () -> Unit,
     onDismissRename: () -> Unit,
+    onDismissMove: () -> Unit,
     onDismissDelete: () -> Unit,
 ) {
+    if (showCreateDialog) {
+        AlbumNameDialog(
+            title = "New album",
+            initialName = "",
+            onConfirm = { name ->
+                viewModel.createAlbum(name)
+                onDismissCreate()
+            },
+            onDismiss = onDismissCreate,
+        )
+    }
+
     renameTarget?.let { album ->
         AlbumNameDialog(
             title = "Rename album",
@@ -176,6 +295,18 @@ private fun AlbumEditDialogs(
         )
     }
 
+    moveTarget?.let { album ->
+        MoveAlbumDialog(
+            album = album,
+            targets = viewModel.validMoveTargets(album.id),
+            onMove = { targetId ->
+                viewModel.moveAlbum(album.id, targetId)
+                onDismissMove()
+            },
+            onDismiss = onDismissMove,
+        )
+    }
+
     deleteTarget?.let { album ->
         DeleteAlbumDialog(
             albumName = album.name,
@@ -184,62 +315,6 @@ private fun AlbumEditDialogs(
                 onDismissDelete()
             },
             onDismiss = onDismissDelete,
-        )
-    }
-}
-
-@Composable
-private fun AlbumRow(
-    album: Album,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = album.name,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
-        )
-        Row {
-            IconButton(onClick = onRename) {
-                Icon(
-                    imageVector = Icons.Filled.Edit,
-                    contentDescription = "Rename",
-                )
-            }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyAlbums() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.padding(16.dp),
-    ) {
-        Text(
-            text = "No albums yet",
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = "Tap + to create your first album",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -282,10 +357,55 @@ private fun AlbumNameDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+/** Lets the user reparent [album] under one of [targets], or move it to the top level. */
+@Composable
+private fun MoveAlbumDialog(
+    album: Album,
+    targets: List<Album>,
+    onMove: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Move \"${album.name}\"") },
+        text = {
+            LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                item {
+                    MoveTargetRow(name = "Top level", enabled = album.parentId != null) { onMove(null) }
+                    HorizontalDivider()
+                }
+                items(targets, key = { it.id }) { target ->
+                    MoveTargetRow(name = target.name, enabled = album.parentId != target.id) { onMove(target.id) }
+                }
             }
         },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+private fun MoveTargetRow(
+    name: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = name,
+        style = MaterialTheme.typography.bodyLarge,
+        color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled, onClick = onClick)
+                .padding(vertical = 12.dp),
     )
 }
 
@@ -299,7 +419,7 @@ private fun DeleteAlbumDialog(
         onDismissRequest = onDismiss,
         title = { Text("Delete album") },
         text = {
-            Text("Delete \"$albumName\"? Media items in this album will not be deleted.")
+            Text("Delete \"$albumName\"? Its sub-albums are also deleted. Media items are not deleted.")
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
@@ -307,9 +427,7 @@ private fun DeleteAlbumDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
 }
