@@ -30,9 +30,29 @@ class FakeAlbumRepository : AlbumRepository {
         albums.value = albums.value.map { if (it.id == id) it.copy(name = name) else it }
     }
 
+    override suspend fun moveAlbum(
+        id: String,
+        parentId: String?,
+    ) {
+        albums.value = albums.value.map { if (it.id == id) it.copy(parentId = parentId) else it }
+    }
+
     override suspend fun deleteAlbum(id: String) {
-        albums.value = albums.value.filter { it.id != id }
-        mediaAlbumAssociations.value = mediaAlbumAssociations.value.filter { it.second != id }
+        val subtree = collectSubtree(id)
+        albums.value = albums.value.filterNot { it.id in subtree }
+        mediaAlbumAssociations.value = mediaAlbumAssociations.value.filterNot { it.second in subtree }
+    }
+
+    // Mirrors the ON DELETE CASCADE on album.parent_id used by the real database.
+    private fun collectSubtree(rootId: String): Set<String> {
+        val subtree = mutableSetOf(rootId)
+        var frontier = listOf(rootId)
+        while (frontier.isNotEmpty()) {
+            val children = albums.value.filter { it.parentId in frontier && it.id !in subtree }.map { it.id }
+            subtree += children
+            frontier = children
+        }
+        return subtree
     }
 
     override fun getAlbumsForMedia(mediaId: String): Flow<List<Album>> =

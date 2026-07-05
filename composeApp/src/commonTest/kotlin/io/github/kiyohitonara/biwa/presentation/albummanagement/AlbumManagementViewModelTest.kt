@@ -257,6 +257,13 @@ private class FakeAlbumRepository : AlbumRepository {
         albums.value = albums.value.map { if (it.id == id) it.copy(name = name) else it }
     }
 
+    override suspend fun moveAlbum(
+        id: String,
+        parentId: String?,
+    ) {
+        albums.value = albums.value.map { if (it.id == id) it.copy(parentId = parentId) else it }
+    }
+
     override suspend fun deleteAlbum(id: String) {
         albums.value = albums.value.filter { it.id != id }
         associations.value = associations.value.filter { it.second != id }

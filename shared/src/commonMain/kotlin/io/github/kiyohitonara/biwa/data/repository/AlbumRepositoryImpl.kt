@@ -39,8 +39,13 @@ class AlbumRepositoryImpl(
 
     override suspend fun createAlbum(album: DomainAlbum) =
         withContext(Dispatchers.IO) {
-            log.d { "insert album id=${album.id} name=${album.name}" }
-            albumQueries.insert(id = album.id, name = album.name, created_at = album.createdAt)
+            log.d { "insert album id=${album.id} name=${album.name} parentId=${album.parentId}" }
+            albumQueries.insert(
+                id = album.id,
+                name = album.name,
+                parent_id = album.parentId,
+                created_at = album.createdAt,
+            )
         }
 
     override suspend fun renameAlbum(
@@ -49,6 +54,14 @@ class AlbumRepositoryImpl(
     ) = withContext(Dispatchers.IO) {
         log.d { "updateName album id=$id name=$name" }
         albumQueries.updateName(name = name, id = id)
+    }
+
+    override suspend fun moveAlbum(
+        id: String,
+        parentId: String?,
+    ) = withContext(Dispatchers.IO) {
+        log.d { "updateParent album id=$id parentId=$parentId" }
+        albumQueries.updateParent(parent_id = parentId, id = id)
     }
 
     override suspend fun deleteAlbum(id: String) =
@@ -117,5 +130,5 @@ class AlbumRepositoryImpl(
         }
     }
 
-    private fun Album.toDomain() = DomainAlbum(id = id, name = name, createdAt = created_at)
+    private fun Album.toDomain() = DomainAlbum(id = id, name = name, createdAt = created_at, parentId = parent_id)
 }

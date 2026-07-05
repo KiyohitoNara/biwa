@@ -23,6 +23,7 @@ import io.github.kiyohitonara.biwa.domain.usecase.GetMediaIdsInAllAlbumsUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetOrderedMediaIdsForAlbumUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetPlaybackStateUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.GetUserPreferencesUseCase
+import io.github.kiyohitonara.biwa.domain.usecase.MoveAlbumUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.RemoveMediaFromAlbumUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.RenameAlbumUseCase
 import io.github.kiyohitonara.biwa.domain.usecase.ReorderAlbumMediaUseCase
@@ -58,6 +59,7 @@ val sharedModule =
         factory { GetAllAlbumsUseCase(get()) }
         factory { CreateAlbumUseCase(get(), idGenerator = { generateUuid() }, clock = { currentEpochSeconds() }) }
         factory { RenameAlbumUseCase(get()) }
+        factory { MoveAlbumUseCase(get()) }
         factory { DeleteAlbumUseCase(get()) }
         factory { GetAlbumsForMediaUseCase(get()) }
         factory { AddMediaToAlbumUseCase(get()) }

@@ -1,11 +1,13 @@
 CREATE TABLE album (
     id TEXT NOT NULL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
-    created_at INTEGER NOT NULL
+    parent_id TEXT,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (parent_id) REFERENCES album(id) ON DELETE CASCADE
 );
 
 insert:
-INSERT INTO album (id, name, created_at) VALUES (?, ?, ?);
+INSERT INTO album (id, name, parent_id, created_at) VALUES (?, ?, ?, ?);
 
 selectAll:
 SELECT * FROM album ORDER BY name ASC;
@@ -15,6 +17,9 @@ SELECT * FROM album WHERE id = ?;
 
 updateName:
 UPDATE album SET name = ? WHERE id = ?;
+
+updateParent:
+UPDATE album SET parent_id = ? WHERE id = ?;
 
 deleteById:
 DELETE FROM album WHERE id = ?;

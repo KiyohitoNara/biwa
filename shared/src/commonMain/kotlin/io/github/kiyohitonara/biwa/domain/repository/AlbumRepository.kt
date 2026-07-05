@@ -11,7 +11,7 @@ interface AlbumRepository {
     /** Returns the album with the given [id], or null if not found. */
     suspend fun getAlbumById(id: String): Album?
 
-    /** Persists a new [album]. Throws if the name is already taken. */
+    /** Persists a new [album], including its [parentId][Album.parentId] placement. Throws if the name is already taken. */
     suspend fun createAlbum(album: Album)
 
     /** Renames the album identified by [id] to [name]. Throws if the name is already taken. */
@@ -20,7 +20,13 @@ interface AlbumRepository {
         name: String,
     )
 
-    /** Deletes the album and all its media associations. */
+    /** Reparents the album identified by [id] under [parentId], or to the root when [parentId] is null. */
+    suspend fun moveAlbum(
+        id: String,
+        parentId: String?,
+    )
+
+    /** Deletes the album, its descendant albums, and all their media associations. */
     suspend fun deleteAlbum(id: String)
 
     /** Returns a flow of albums attached to the media item identified by [mediaId]. */

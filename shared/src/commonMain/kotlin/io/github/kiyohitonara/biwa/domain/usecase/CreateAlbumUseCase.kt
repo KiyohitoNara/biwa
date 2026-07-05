@@ -10,14 +10,17 @@ class CreateAlbumUseCase(
     private val clock: () -> Long,
 ) {
     /**
-     * Creates a album with [name] and persists it.
+     * Creates an album with [name] under [parentId] (null for a root-level album) and persists it.
      *
      * @throws IllegalArgumentException if [name] is blank.
-     * @throws Exception if a album with the same name already exists.
+     * @throws Exception if an album with the same name already exists.
      */
-    suspend fun execute(name: String): Album {
+    suspend fun execute(
+        name: String,
+        parentId: String? = null,
+    ): Album {
         require(name.isNotBlank()) { "Album name must not be blank" }
-        val album = Album(id = idGenerator(), name = name.trim(), createdAt = clock())
+        val album = Album(id = idGenerator(), name = name.trim(), createdAt = clock(), parentId = parentId)
         repository.createAlbum(album)
         return album
     }
