@@ -47,7 +47,7 @@ interface AlbumRepository {
 
     /**
      * Returns a flow of media IDs that have ALL of the given [albumIds] attached.
-     * Returns a flow of all media IDs when [albumIds] is empty.
+     * Returns a flow of an empty set when [albumIds] is empty.
      */
     fun getMediaIdsInAllAlbums(albumIds: List<String>): Flow<Set<String>>
 

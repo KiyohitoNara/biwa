@@ -587,6 +587,7 @@ private fun DraggableGridItem(
     val isDragged = state.isDragged(item.id)
     val isDropTarget = state.isDropTarget(item.id)
     val isDragActive = state.isDragging
+    val currentItems by rememberUpdatedState(items)
 
     Box(
         modifier =
@@ -609,11 +610,11 @@ private fun DraggableGridItem(
                         onDrag = { _, amount -> state.drag(amount) },
                         onDragEnd = {
                             val draggedItemId = state.draggedKey
-                            val fromIdx = items.indexOfFirst { it.id == draggedItemId }
-                            val toIdx = items.indexOfFirst { it.id == state.dropTargetKey }
+                            val fromIdx = currentItems.indexOfFirst { it.id == draggedItemId }
+                            val toIdx = currentItems.indexOfFirst { it.id == state.dropTargetKey }
                             val moved = state.dragDistance() > slop
                             if (!moved && draggedItemId != null) {
-                                items.firstOrNull { it.id == draggedItemId }?.let(actions.onLongPress)
+                                currentItems.firstOrNull { it.id == draggedItemId }?.let(actions.onLongPress)
                             } else if (fromIdx != -1 && toIdx != -1 && fromIdx != toIdx) {
                                 actions.onReorder(fromIdx, toIdx)
                             }
