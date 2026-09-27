@@ -113,9 +113,12 @@ class AlbumManagementViewModel(
         viewModelScope.launch {
             try {
                 createAlbumUseCase.execute(name, parentId)
-            } catch (e: Exception) {
+            } catch (e: IllegalArgumentException) {
                 log.w(e) { "Failed to create album name=$name" }
                 _error.emit(e.message ?: "Failed to create album")
+            } catch (e: Exception) {
+                log.w(e) { "Failed to create album name=$name" }
+                _error.emit("Failed to create album")
             }
         }
     }
@@ -134,9 +137,12 @@ class AlbumManagementViewModel(
         viewModelScope.launch {
             try {
                 renameAlbumUseCase.execute(id, name)
-            } catch (e: Exception) {
+            } catch (e: IllegalArgumentException) {
                 log.w(e) { "Failed to rename album id=$id name=$name" }
                 _error.emit(e.message ?: "Failed to rename album")
+            } catch (e: Exception) {
+                log.w(e) { "Failed to rename album id=$id name=$name" }
+                _error.emit("Failed to rename album")
             }
         }
     }
