@@ -51,6 +51,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -588,6 +589,10 @@ private fun DraggableGridItem(
     val isDropTarget = state.isDropTarget(item.id)
     val isDragActive = state.isDragging
     val currentItems by rememberUpdatedState(items)
+
+    DisposableEffect(item.id) {
+        onDispose { state.itemBounds.remove(item.id) }
+    }
 
     Box(
         modifier =
