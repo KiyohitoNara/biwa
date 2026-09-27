@@ -9,6 +9,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
@@ -100,6 +102,7 @@ actual fun App() {
         val showBottomBar = currentRoute?.destination?.route in topLevelTabs.map { it.route }
 
         Scaffold(
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
                 if (showBottomBar) {
                     AppBottomBar(
@@ -116,7 +119,10 @@ actual fun App() {
                 exitTransition = forwardExit,
                 popEnterTransition = backEnter,
                 popExitTransition = backExit,
-                modifier = Modifier.padding(innerPadding),
+                modifier =
+                    Modifier
+                        .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding),
             ) {
                 composable(ROUTE_MEDIA) {
                     LibraryScreen(
