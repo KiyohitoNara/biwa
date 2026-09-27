@@ -256,15 +256,17 @@ private fun PlayerStateEffects(
         if (!isActive) player.pause()
     }
 
+    val currentIsCurrent by rememberUpdatedState(isCurrent)
+
     DisposableEffect(player) {
         val listener =
             object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    if (isCurrent) viewModel.updatePlayingState(isPlaying)
+                    if (currentIsCurrent) viewModel.updatePlayingState(isPlaying)
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (isCurrent && playbackState == Player.STATE_READY) {
+                    if (currentIsCurrent && playbackState == Player.STATE_READY) {
                         viewModel.updateDuration(player.duration.coerceAtLeast(0L))
                     }
                 }
