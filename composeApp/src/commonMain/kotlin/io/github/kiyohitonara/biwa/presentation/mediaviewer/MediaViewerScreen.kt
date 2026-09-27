@@ -317,7 +317,7 @@ private fun AlbumAssignmentSheet(
             val ready = albumState as? AlbumManagementUiState.Ready
             if (ready == null || ready.allAlbums.isEmpty()) {
                 Text(
-                    text = "No albums yet. Create one from the library's Albums screen.",
+                    text = "No albums yet. Create one from the Albums tab.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
