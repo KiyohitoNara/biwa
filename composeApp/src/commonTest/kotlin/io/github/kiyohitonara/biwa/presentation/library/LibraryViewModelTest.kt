@@ -576,7 +576,12 @@ class LibraryViewModelTest {
     @Test
     fun `toggleAlbum removes album when already active`() =
         runTest {
+            fakeAlbumRepository.albums.value = listOf(Album("t1", "Nature", 0L))
             viewModel.toggleAlbum("t1")
+
+            val activeState = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertTrue(activeState.activeAlbumIds.contains("t1"))
+
             viewModel.toggleAlbum("t1")
 
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
@@ -641,6 +646,7 @@ class LibraryViewModelTest {
     @Test
     fun `clearing all active albums shows all items`() =
         runTest {
+            fakeAlbumRepository.albums.value = listOf(Album("t1", "Nature", 0L))
             fakeItems.value =
                 listOf(
                     videoItem().copy(id = "a", filePath = "/media/a.mp4"),
@@ -649,6 +655,10 @@ class LibraryViewModelTest {
             fakeAlbumRepository.addMediaToAlbum("a", "t1")
 
             viewModel.toggleAlbum("t1")
+
+            val filteredState = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertEquals(1, filteredState.items.size)
+
             viewModel.toggleAlbum("t1")
 
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
