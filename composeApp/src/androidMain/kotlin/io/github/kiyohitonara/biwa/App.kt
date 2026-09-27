@@ -112,43 +112,54 @@ actual fun App() {
                 }
             },
         ) { innerPadding ->
-            NavHost(
+            AppNavHost(
                 navController = navController,
-                startDestination = ROUTE_MEDIA,
-                enterTransition = forwardEnter,
-                exitTransition = forwardExit,
-                popEnterTransition = backEnter,
-                popExitTransition = backExit,
                 modifier =
                     Modifier
                         .padding(innerPadding)
                         .consumeWindowInsets(innerPadding),
-            ) {
-                composable(ROUTE_MEDIA) {
-                    LibraryScreen(
-                        onOpenMediaViewer = { id -> navController.navigate("media_viewer/$id") },
-                        onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
-                    )
-                }
-                composable(ROUTE_ALBUMS) {
-                    AlbumManagementScreen()
-                }
-                composable(ROUTE_MEDIA_VIEWER) { backStackEntry ->
-                    MediaViewerScreen(
-                        mediaId = backStackEntry.arguments?.getString("id").orEmpty(),
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-                composable(ROUTE_SETTINGS) {
-                    SettingsScreen(
-                        onBack = { navController.popBackStack() },
-                        onAbout = { navController.navigate(ROUTE_ABOUT) },
-                    )
-                }
-                composable(ROUTE_ABOUT) {
-                    AboutScreen(onBack = { navController.popBackStack() })
-                }
-            }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppNavHost(
+    navController: NavHostController,
+    modifier: Modifier = Modifier,
+) {
+    NavHost(
+        navController = navController,
+        startDestination = ROUTE_MEDIA,
+        enterTransition = forwardEnter,
+        exitTransition = forwardExit,
+        popEnterTransition = backEnter,
+        popExitTransition = backExit,
+        modifier = modifier,
+    ) {
+        composable(ROUTE_MEDIA) {
+            LibraryScreen(
+                onOpenMediaViewer = { id -> navController.navigate("media_viewer/$id") },
+                onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
+            )
+        }
+        composable(ROUTE_ALBUMS) {
+            AlbumManagementScreen()
+        }
+        composable(ROUTE_MEDIA_VIEWER) { backStackEntry ->
+            MediaViewerScreen(
+                mediaId = backStackEntry.arguments?.getString("id").orEmpty(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(ROUTE_SETTINGS) {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onAbout = { navController.navigate(ROUTE_ABOUT) },
+            )
+        }
+        composable(ROUTE_ABOUT) {
+            AboutScreen(onBack = { navController.popBackStack() })
         }
     }
 }
