@@ -18,7 +18,9 @@ class FakeAlbumRepository : AlbumRepository {
     override suspend fun getAlbumById(id: String): Album? = albums.value.find { it.id == id }
 
     override suspend fun createAlbum(album: Album) {
-        if (albums.value.any { it.name == album.name }) error("Album name '${album.name}' already exists")
+        if (albums.value.any { it.parentId == album.parentId && it.name == album.name }) {
+            error("Album name '${album.name}' already exists")
+        }
         albums.value = albums.value + album
     }
 
@@ -26,7 +28,10 @@ class FakeAlbumRepository : AlbumRepository {
         id: String,
         name: String,
     ) {
-        if (albums.value.any { it.name == name && it.id != id }) error("Album name '$name' already exists")
+        val parentId = albums.value.find { it.id == id }?.parentId
+        if (albums.value.any { it.parentId == parentId && it.name == name && it.id != id }) {
+            error("Album name '$name' already exists")
+        }
         albums.value = albums.value.map { if (it.id == id) it.copy(name = name) else it }
     }
 
@@ -34,6 +39,10 @@ class FakeAlbumRepository : AlbumRepository {
         id: String,
         parentId: String?,
     ) {
+        val name = albums.value.find { it.id == id }?.name
+        if (albums.value.any { it.parentId == parentId && it.name == name && it.id != id }) {
+            error("Album name '$name' already exists")
+        }
         albums.value = albums.value.map { if (it.id == id) it.copy(parentId = parentId) else it }
     }
 

@@ -25,11 +25,13 @@ CREATE TABLE playback_state (
 
 CREATE TABLE album (
     id TEXT NOT NULL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     parent_id TEXT,
     created_at INTEGER NOT NULL,
     FOREIGN KEY (parent_id) REFERENCES album(id) ON DELETE CASCADE
 );
+
+CREATE UNIQUE INDEX album_name_unique_per_parent ON album (COALESCE(parent_id, ''), name);
 
 CREATE TABLE media_album (
     media_id TEXT NOT NULL,

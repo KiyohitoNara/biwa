@@ -1,10 +1,15 @@
 CREATE TABLE album (
     id TEXT NOT NULL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     parent_id TEXT,
     created_at INTEGER NOT NULL,
     FOREIGN KEY (parent_id) REFERENCES album(id) ON DELETE CASCADE
 );
+
+-- Sibling albums (same parent, or both at the root) must have distinct names;
+-- albums under different parents may reuse a name. COALESCE(parent_id, '') groups
+-- all root-level albums together, since SQLite treats NULLs as distinct in a UNIQUE index.
+CREATE UNIQUE INDEX album_name_unique_per_parent ON album (COALESCE(parent_id, ''), name);
 
 insert:
 INSERT INTO album (id, name, parent_id, created_at) VALUES (?, ?, ?, ?);

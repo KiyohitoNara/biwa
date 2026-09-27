@@ -150,7 +150,8 @@ class AlbumManagementViewModel(
     /**
      * Moves the album identified by [id] under [targetParentId], or to the root when null.
      *
-     * Emits on [error] if the move would create a cycle.
+     * Emits on [error] if the move would create a cycle or a sibling with the same name
+     * already exists under [targetParentId].
      */
     @Suppress("TooGenericExceptionCaught") // Translate any use-case failure into a UI error event.
     fun moveAlbum(
@@ -161,9 +162,12 @@ class AlbumManagementViewModel(
         viewModelScope.launch {
             try {
                 moveAlbumUseCase.execute(id, targetParentId)
-            } catch (e: Exception) {
+            } catch (e: IllegalArgumentException) {
                 log.w(e) { "Failed to move album id=$id" }
                 _error.emit(e.message ?: "Failed to move album")
+            } catch (e: Exception) {
+                log.w(e) { "Failed to move album id=$id" }
+                _error.emit("Failed to move album")
             }
         }
     }

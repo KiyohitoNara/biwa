@@ -68,4 +68,16 @@ class MoveAlbumUseCaseTest {
                 useCase.execute(id = "a", parentId = "c")
             }
         }
+
+    @Test
+    fun `execute throws when the target parent already has a same-named child`() =
+        runTest {
+            createAlbum("parent", "Parent")
+            createAlbum("existing", "Nature", parentId = "parent")
+            createAlbum("moving", "Nature")
+
+            assertFailsWith<Exception> {
+                useCase.execute(id = "moving", parentId = "parent")
+            }
+        }
 }

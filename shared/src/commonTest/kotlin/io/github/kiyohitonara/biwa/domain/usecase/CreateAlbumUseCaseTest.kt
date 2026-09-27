@@ -61,12 +61,29 @@ class CreateAlbumUseCaseTest {
         }
 
     @Test
-    fun `execute throws for duplicate name`() =
+    fun `execute throws for duplicate name under the same parent`() =
         runTest {
             useCase.execute("Nature")
 
             assertFailsWith<Exception> {
                 useCase.execute("Nature")
             }
+        }
+
+    @Test
+    fun `execute allows duplicate name under different parents`() =
+        runTest {
+            nextId = "parent-a"
+            val parentA = useCase.execute("Folder A")
+            nextId = "parent-b"
+            val parentB = useCase.execute("Folder B")
+
+            nextId = "child-a"
+            useCase.execute("Nature", parentId = parentA.id)
+            nextId = "child-b"
+            useCase.execute("Nature", parentId = parentB.id)
+
+            val albums = repository.getAllAlbums().first()
+            assertEquals(2, albums.count { it.name == "Nature" })
         }
 }
