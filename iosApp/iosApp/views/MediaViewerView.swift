@@ -94,6 +94,7 @@ struct MediaViewerView: View {
         }
         .navigationBarBackButtonHidden()
         .toolbarVisibility(.hidden, for: .navigationBar)
+        .toolbarVisibility(.hidden, for: .tabBar)
         .onDisappear { bridge.saveCurrentState() }
         .onChange(of: bridge.currentIndex) { _ in rotationDegrees = 0 }
         .sheet(item: $albumSheetItem) { item in
@@ -284,18 +285,29 @@ private struct PhotoPage: View {
     }
 }
 
+@MainActor
+private final class VideoPlayerBox: ObservableObject {
+    let player: AVPlayer
+
+    init(url: URL) {
+        player = AVPlayer(url: url)
+    }
+}
+
 private struct VideoPlayerPage: View {
     let item: MediaItem
     let isActive: Bool
     let rotationDegrees: Int
     @ObservedObject var bridge: MediaViewerViewModelBridge
 
-    @State private var player: AVPlayer
+    @StateObject private var playerBox: VideoPlayerBox
     @State private var containerSize: CGSize = .zero
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
+
+    private var player: AVPlayer { playerBox.player }
 
     private let seekStepMs: Int64 = 10_000
 
@@ -304,7 +316,7 @@ private struct VideoPlayerPage: View {
         self.isActive = isActive
         self.rotationDegrees = rotationDegrees
         _bridge = ObservedObject(wrappedValue: bridge)
-        _player = State(initialValue: AVPlayer(url: URL(fileURLWithPath: item.filePath)))
+        _playerBox = StateObject(wrappedValue: VideoPlayerBox(url: URL(fileURLWithPath: item.filePath)))
     }
 
     // Tracks the time of the most recent finger-up that was a tap (no drag).
