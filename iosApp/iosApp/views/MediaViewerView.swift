@@ -624,7 +624,7 @@ private struct AlbumAssignmentSheet: View {
         NavigationStack {
             List {
                 if bridge.allAlbums.isEmpty {
-                    Text("No albums yet. Create one from the library's Albums screen.")
+                    Text("No albums yet. Create one from the Albums tab.")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(bridge.allAlbums) { album in
