@@ -29,7 +29,7 @@ flowchart TD
     subgraph Presentation["Presentation Layer"]
         Android["Android UI<br/>(Compose: MainActivity, Screens, NavHost)"]
         iOS["iOS UI<br/>(SwiftUI views, ViewModel reused via SKIE)"]
-        VM["ViewModel<br/>StateFlow&lt;UiState&gt; / SharedFlow&lt;Event&gt;<br/>[composeApp/commonMain]"]
+        VM["ViewModel<br/>StateFlow&lt;UiState&gt; / SharedFlow&lt;Event&gt;<br/>[shared/commonMain]"]
         Android --> VM
         iOS --> VM
     end
@@ -65,7 +65,7 @@ flowchart TD
     Media --> iOSImpl
 ```
 
-**Cross-cutting concerns:** Koin for DI (`AppModule` in `shared`, `ViewModelModule` in `composeApp`),
+**Cross-cutting concerns:** Koin for DI (`AppModule` and `ViewModelModule`, both in `shared`),
 ExoPlayer for media playback, and Coil for image loading.
 
 ### Build and Run Android Application
