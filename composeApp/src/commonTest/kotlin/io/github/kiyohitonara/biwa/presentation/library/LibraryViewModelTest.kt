@@ -566,6 +566,7 @@ class LibraryViewModelTest {
     @Test
     fun `toggleAlbum adds album to activeAlbumIds`() =
         runTest {
+            fakeAlbumRepository.albums.value = listOf(Album("t1", "Nature", 0L))
             viewModel.toggleAlbum("t1")
 
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
@@ -598,6 +599,18 @@ class LibraryViewModelTest {
             val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
             assertEquals(1, state.items.size)
             assertEquals("a", state.items.first().id)
+        }
+
+    @Test
+    fun `deleting the active album clears it from activeAlbumIds`() =
+        runTest {
+            fakeAlbumRepository.albums.value = listOf(Album("t1", "Nature", 0L))
+            viewModel.toggleAlbum("t1")
+
+            fakeAlbumRepository.albums.value = emptyList()
+
+            val state = assertIs<LibraryUiState.Success>(viewModel.uiState.value)
+            assertTrue(state.activeAlbumIds.isEmpty())
         }
 
     @Test

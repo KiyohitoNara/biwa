@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -76,7 +77,9 @@ class LibraryViewModel(
      * disappears to survive configuration changes.
      */
     val uiState: StateFlow<LibraryUiState> =
-        _activeAlbumIds
+        combine(_activeAlbumIds, getAllAlbumsUseCase.execute()) { requestedIds, allAlbums ->
+            requestedIds intersect allAlbums.map { it.id }.toSet()
+        }.distinctUntilChanged()
             .flatMapLatest { albumIds ->
                 val mediaFlow =
                     when {
