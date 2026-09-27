@@ -10,7 +10,7 @@
 - **Architecture**: Clean Architecture + MVVM
 - **Build System**: Gradle
 - **Format**: ktlint (Android/shared), SwiftLint (iOS)
-- **Lint**: ktlint (Android/shared), SwiftLint (iOS)
+- **Lint**: ktlint + detekt (Android/shared), SwiftLint (iOS)
 - **Test**: kotlin.test (multiplatform), JUnit4 (Android/JVM runner), kotlinx-coroutines-test
 
 ## Development Workflow
@@ -50,6 +50,7 @@ xcrun simctl launch "iPhone 17" io.github.kiyohitonara.biwa.Biwa
 **Lint:**
 ```bash
 ./gradlew ktlintCheck
+./gradlew detekt
 ```
 
 **Test:**
