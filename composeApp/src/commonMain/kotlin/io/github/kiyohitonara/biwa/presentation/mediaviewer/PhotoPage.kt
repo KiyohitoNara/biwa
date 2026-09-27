@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +39,7 @@ fun PhotoPage(
     var imageIntrinsicSize by remember { mutableStateOf(IntSize.Zero) }
 
     val minScale = rememberMinScale(imageIntrinsicSize, containerSize)
+    val currentMinScale by rememberUpdatedState(minScale)
 
     fun setZoom(
         newScaleUnclamped: Float,
@@ -49,7 +51,7 @@ fun PhotoPage(
                 newScaleUnclamped = newScaleUnclamped,
                 anchor = anchor,
                 containerSize = containerSize,
-                minScale = minScale,
+                minScale = currentMinScale,
                 maxScale = MAX_ZOOM,
             )
         scale = result.scale
