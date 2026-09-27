@@ -36,7 +36,7 @@ This project follows GitLab Flow.
 ./gradlew :composeApp:installDebug
 
 # iOS (simulator only; use Xcode for running on a device)
-xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -sdk iphonesimulator -derivedDataPath iosApp/build build
+xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -sdk iphonesimulator -derivedDataPath iosApp/build -skipPackagePluginValidation build
 xcrun simctl boot "iPhone 17"
 xcrun simctl install "iPhone 17" iosApp/build/Build/Products/Debug-iphonesimulator/Biwa.app
 xcrun simctl launch "iPhone 17" io.github.kiyohitonara.biwa.Biwa
