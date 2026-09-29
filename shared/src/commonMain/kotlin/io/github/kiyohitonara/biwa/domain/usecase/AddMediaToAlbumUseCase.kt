@@ -2,7 +2,7 @@ package io.github.kiyohitonara.biwa.domain.usecase
 
 import io.github.kiyohitonara.biwa.domain.repository.AlbumRepository
 
-/** Attaches a album to a media item. */
+/** Attaches an album to a media item. */
 class AddMediaToAlbumUseCase(
     private val repository: AlbumRepository,
 ) {

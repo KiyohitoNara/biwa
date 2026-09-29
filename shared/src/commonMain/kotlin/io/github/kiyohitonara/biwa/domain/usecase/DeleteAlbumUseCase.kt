@@ -2,7 +2,7 @@ package io.github.kiyohitonara.biwa.domain.usecase
 
 import io.github.kiyohitonara.biwa.domain.repository.AlbumRepository
 
-/** Deletes a album and all its media associations. */
+/** Deletes an album and all its media associations. */
 class DeleteAlbumUseCase(
     private val repository: AlbumRepository,
 ) {

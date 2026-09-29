@@ -58,7 +58,7 @@ interface AlbumRepository {
     fun getOrderedMediaIdsForAlbum(albumId: String): Flow<List<String>>
 
     /**
-     * Persists a album-specific manual ordering by assigning sequential sort_order
+     * Persists an album-specific manual ordering by assigning sequential sort_order
      * values to the media items identified by [orderedIds].
      */
     suspend fun reorderAlbumMedia(

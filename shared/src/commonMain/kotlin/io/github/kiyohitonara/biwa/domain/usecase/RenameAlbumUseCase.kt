@@ -10,7 +10,7 @@ class RenameAlbumUseCase(
      * Renames the album identified by [id] to [name].
      *
      * @throws IllegalArgumentException if [name] is blank.
-     * @throws Exception if a album with the same name already exists.
+     * @throws Exception if an album with the same name already exists.
      */
     suspend fun execute(
         id: String,
