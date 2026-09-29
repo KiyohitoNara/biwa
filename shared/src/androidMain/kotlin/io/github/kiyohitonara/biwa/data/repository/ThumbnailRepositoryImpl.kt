@@ -39,7 +39,7 @@ class ThumbnailRepositoryImpl(
                     bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
                 }
                 bitmap.recycle()
-                log.d { "Generated thumbnail for videoPath=$videoPath at ${file.absolutePath}" }
+                log.d { "generateVideoThumbnail videoPath=$videoPath path=${file.absolutePath}" }
                 file.absolutePath
             } catch (e: Exception) {
                 log.w(e) { "Failed to generate thumbnail for videoPath=$videoPath" }

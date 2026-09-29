@@ -67,7 +67,7 @@ class ThumbnailRepositoryImpl(
                     contents = jpegData,
                     attributes = null,
                 )
-                log.d { "Generated thumbnail for videoPath=$videoPath at $filePath" }
+                log.d { "generateVideoThumbnail videoPath=$videoPath path=$filePath" }
                 filePath
             } catch (e: Exception) {
                 log.w(e) { "Failed to generate thumbnail for videoPath=$videoPath" }

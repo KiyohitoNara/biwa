@@ -28,14 +28,14 @@ actual class FileManager(
                 ?.use { input -> destFile.outputStream().use { output -> input.copyTo(output) } }
                 ?: error("Failed to open input stream for URI: $sourceUri")
 
-            log.d { "Copied $sourceUri to ${destFile.absolutePath}" }
+            log.d { "copyToInternalStorage sourceUri=$sourceUri destPath=${destFile.absolutePath}" }
             destFile.absolutePath
         }
 
     actual override suspend fun deleteFromInternalStorage(filePath: String) =
         withContext(Dispatchers.IO) {
             val deleted = File(filePath).takeIf { it.exists() }?.delete()
-            log.d { "Delete filePath=$filePath deleted=${deleted == true}" }
+            log.d { "deleteFromInternalStorage filePath=$filePath deleted=${deleted == true}" }
             Unit
         }
 

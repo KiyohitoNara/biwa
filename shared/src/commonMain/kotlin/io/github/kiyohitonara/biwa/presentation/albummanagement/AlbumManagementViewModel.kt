@@ -84,7 +84,7 @@ class AlbumManagementViewModel(
 
     /** Opens the album identified by [id], showing its child albums. */
     fun enterAlbum(id: String) {
-        log.d { "enterAlbum id=$id" }
+        log.d { "Enter album id=$id" }
         currentParentId.value = id
     }
 

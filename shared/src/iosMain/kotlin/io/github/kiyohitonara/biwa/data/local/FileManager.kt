@@ -40,7 +40,7 @@ actual class FileManager(
                 )
             check(success) { "Failed to copy file from $sourceUri to $destPath" }
 
-            log.d { "Copied $sourceUri to $destPath" }
+            log.d { "copyToInternalStorage sourceUri=$sourceUri destPath=$destPath" }
             destPath
         }
 
@@ -50,7 +50,7 @@ actual class FileManager(
             if (existed) {
                 NSFileManager.defaultManager.removeItemAtPath(filePath, error = null)
             }
-            log.d { "Delete filePath=$filePath existed=$existed" }
+            log.d { "deleteFromInternalStorage filePath=$filePath existed=$existed" }
             Unit
         }
 

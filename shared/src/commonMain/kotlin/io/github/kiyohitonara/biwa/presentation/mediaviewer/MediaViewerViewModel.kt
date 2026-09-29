@@ -78,7 +78,7 @@ class MediaViewerViewModel(
             ?.associate { (index, id) -> id to index }
 
     init {
-        log.d { "Opening viewer for mediaId=$mediaId" }
+        log.d { "Open viewer for mediaId=$mediaId" }
         viewModelScope.launch { collectMedia() }
     }
 
@@ -255,7 +255,7 @@ class MediaViewerViewModel(
     fun deleteCurrentMedia() {
         val state = _uiState.value as? MediaViewerUiState.Ready ?: return
         val item = state.items.getOrNull(state.currentIndex) ?: return
-        log.i { "Deleting media id=${item.id}" }
+        log.i { "Delete media id=${item.id}" }
         viewModelScope.launch {
             deletedIds.add(item.id)
             deleteMediaUseCase.execute(item.id)
