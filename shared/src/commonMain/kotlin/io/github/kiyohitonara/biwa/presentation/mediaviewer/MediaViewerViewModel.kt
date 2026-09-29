@@ -264,8 +264,12 @@ class MediaViewerViewModel(
 
     /**
      * Persists the current video's playback state to the repository.
-     * Called when the screen leaves composition. No-op for non-video items
-     * and for items already deleted via [deleteCurrentMedia].
+     *
+     * Must be called while the screen is still part of the composition (e.g. from
+     * `DisposableEffect`'s `onDispose`) — [ViewModel.onCleared] runs after
+     * `viewModelScope` has already been cancelled, so a launch from there would
+     * never execute. No-op for non-video items and for items already deleted via
+     * [deleteCurrentMedia].
      */
     fun saveCurrentState() {
         val state = _uiState.value as? MediaViewerUiState.Ready ?: return
@@ -284,11 +288,6 @@ class MediaViewerViewModel(
             abEndMs = state.abEndMs,
             playbackSpeed = state.playbackSpeed,
         )
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        saveCurrentState()
     }
 
     /**
