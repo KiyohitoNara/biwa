@@ -30,6 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -70,9 +72,13 @@ fun MediaViewerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentOnBack by rememberUpdatedState(onBack)
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(viewModel.navigateBack) {
         viewModel.navigateBack.collect { currentOnBack() }
+    }
+    LaunchedEffect(viewModel.deleteError) {
+        viewModel.deleteError.collect { message -> snackbarHostState.showSnackbar(message) }
     }
 
     DisposableEffect(Unit) {
@@ -107,6 +113,7 @@ fun MediaViewerScreen(
                 )
             }
         }
+        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 

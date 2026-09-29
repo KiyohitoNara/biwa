@@ -65,6 +65,11 @@ class MediaViewerViewModel(
     /** Emits when the screen should pop back to the library (e.g. after deleting the last item). */
     val navigateBack: SharedFlow<Unit> = _navigateBack.asSharedFlow()
 
+    private val _deleteError = MutableSharedFlow<String>()
+
+    /** Emits an error message when deletion fails. One-shot event. */
+    val deleteError: SharedFlow<String> = _deleteError.asSharedFlow()
+
     /** IDs whose media has been deleted via this ViewModel, so we skip persisting their state. */
     private val deletedIds = mutableSetOf<String>()
 
@@ -251,14 +256,22 @@ class MediaViewerViewModel(
      *
      * When the deleted item was the last remaining one, [navigateBack] is emitted.
      * Otherwise the pager advances to the next item via reactive re-emission.
+     * On failure an error message is emitted on [deleteError].
      */
+    @Suppress("TooGenericExceptionCaught") // Translate any use-case failure into a UI error event.
     fun deleteCurrentMedia() {
         val state = _uiState.value as? MediaViewerUiState.Ready ?: return
         val item = state.items.getOrNull(state.currentIndex) ?: return
         log.i { "Delete media id=${item.id}" }
         viewModelScope.launch {
             deletedIds.add(item.id)
-            deleteMediaUseCase.execute(item.id)
+            try {
+                deleteMediaUseCase.execute(item.id)
+            } catch (e: Exception) {
+                deletedIds.remove(item.id)
+                log.w(e) { "Failed to delete media id=${item.id}" }
+                _deleteError.emit(e.message ?: "Failed to delete")
+            }
         }
     }
 

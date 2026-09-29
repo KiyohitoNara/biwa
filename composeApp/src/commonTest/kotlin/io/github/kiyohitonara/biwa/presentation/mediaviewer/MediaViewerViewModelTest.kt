@@ -222,6 +222,33 @@ class MediaViewerViewModelTest {
         }
 
     @Test
+    fun `deleteCurrentMedia emits deleteError when use case throws`() =
+        runTest(testDispatcher) {
+            fakeMediaRepository.addMedia(photoItem("p1"))
+            val throwingViewModel =
+                MediaViewerViewModel(
+                    mediaId = "p1",
+                    getAllMediaUseCase = GetAllMediaUseCase(fakeMediaRepository),
+                    updateLastViewedAtUseCase = UpdateLastViewedAtUseCase(fakeMediaRepository, clock = { 0L }),
+                    deleteMediaUseCase = DeleteMediaUseCase(fakeMediaRepository, throwingFileStorage("delete failed")),
+                    getPlaybackStateUseCase = GetPlaybackStateUseCase(fakePlaybackRepository),
+                    savePlaybackStateUseCase = SavePlaybackStateUseCase(fakePlaybackRepository, clock = { 0L }),
+                    setAbPointUseCase = SetAbPointUseCase(fakePlaybackRepository, clock = { 0L }),
+                    resetAbRepeatUseCase = ResetAbRepeatUseCase(fakePlaybackRepository, clock = { 0L }),
+                    libraryDisplayState = libraryDisplayState,
+                    logger = Logger(loggerConfigInit()),
+                )
+
+            var receivedError: String? = null
+            val errorJob = launch { throwingViewModel.deleteError.collect { receivedError = it } }
+
+            throwingViewModel.deleteCurrentMedia()
+            errorJob.cancel()
+
+            assertEquals("delete failed", receivedError)
+        }
+
+    @Test
     fun `saveCurrentState persists position for current video`() =
         runTest {
             fakeMediaRepository.addMedia(videoItem("v1"))
@@ -253,6 +280,18 @@ class MediaViewerViewModelTest {
             ) = "/internal/media/$fileName"
 
             override suspend fun deleteFromInternalStorage(filePath: String) {}
+        }
+
+    private fun throwingFileStorage(message: String) =
+        object : FileStorage {
+            override suspend fun copyToInternalStorage(
+                sourceUri: String,
+                fileName: String,
+            ) = "/internal/media/$fileName"
+
+            override suspend fun deleteFromInternalStorage(filePath: String) {
+                error(message)
+            }
         }
 
     private fun photoItem(id: String) =
