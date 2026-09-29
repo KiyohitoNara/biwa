@@ -194,7 +194,7 @@ class LibraryViewModel(
      * Moves the item at [fromIndex] to [toIndex] within the currently displayed list
      * and persists the new ordering.
      *
-     * When exactly one album is active, the ordering is saved as a album-specific sort order
+     * When exactly one album is active, the ordering is saved as an album-specific sort order
      * via [ReorderAlbumMediaUseCase]. Otherwise the global manual ordering is updated via
      * [ReorderMediaUseCase].
      *
