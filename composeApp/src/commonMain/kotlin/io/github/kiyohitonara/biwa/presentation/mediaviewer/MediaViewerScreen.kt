@@ -80,6 +80,9 @@ fun MediaViewerScreen(
     LaunchedEffect(viewModel.deleteError) {
         viewModel.deleteError.collect { message -> snackbarHostState.showSnackbar(message) }
     }
+    LaunchedEffect(viewModel.abRepeatError) {
+        viewModel.abRepeatError.collect { snackbarHostState.showSnackbar("Invalid AB-repeat range") }
+    }
 
     DisposableEffect(Unit) {
         onDispose { viewModel.saveCurrentState() }
